@@ -260,14 +260,41 @@ function handlePosition(position) {
   }
 }
 
+// Flag di sicurezza per evitare avanzamenti multipli incontrollati
+let isAutoAdvancing = false;
+
 function updateDisplays() {
   if (route.length === 0) return;
 
   const current = route[currentStageIndex];
 
+  // Calcola i km rimanenti al target del parziale
   let remainingTrip = current.parziale - tripKmTraveled;
+
+  // CONTROLLO AVANZAMENTO AUTOMATICO
+  if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
+    isAutoAdvancing = true;
+    
+    // Se c'è una nota successiva, passa automaticamente alla tappa seguente
+    if (currentStageIndex < route.length - 1) {
+      currentStageIndex++;
+      tripKmTraveled = 0.0; // Reset del parziale per la nuova nota
+      
+      // Breve timeout per stabilizzare l'avanzamento ed evitare scatti doppi
+      setTimeout(() => {
+        updateStageDisplay();
+        isAutoAdvancing = false;
+      }, 500);
+      return;
+    } else {
+      // Se è l'ultima nota del roadbook, blocca il contatore a 0.00
+      remainingTrip = 0;
+    }
+  }
+
   if (remainingTrip < 0) remainingTrip = 0;
 
+  // Aggiornamento interfaccia grafica
   const countdownEl = document.getElementById("trip-countdown");
   const totalEl = document.getElementById("total-traveled");
 
@@ -275,8 +302,16 @@ function updateDisplays() {
   if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
 }
 
+function nextStage() {
+  if (currentStageIndex < route.length - 1) {
+    currentStageIndex++;
+    resetTrip();
+  }
+}
+
 function resetTrip() {
   tripKmTraveled = 0.0;
+  isAutoAdvancing = false;
   updateStageDisplay();
 }
 
