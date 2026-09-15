@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roadbook Trip Master</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100vh;
+      padding: 20px;
+      user-select: none;
+    }
+    .display-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    .box {
+      background-color: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+    }
+    .box-trip {
+      border-color: #00e676;
+    }
+    .label {
+      font-size: 1.1rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .value {
+      font-size: 3.5rem;
+      font-weight: bold;
+      font-family: monospace;
+      margin: 5px 0;
+    }
+    .unit {
+      font-size: 1.2rem;
+      color: #888;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 18px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .btn-reset-trip {
+      background-color: #00e676;
+      color: #000;
+    }
+    .btn-reset-total {
+      background-color: #ff5252;
+      color: #fff;
+    }
+    .btn-toggle {
+      background-color: #29b6f6;
+      color: #000;
+    }
+    .status-container {
+      text-align: center;
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .status-gps {
+      color: #ffb74d;
+    }
+    .status-wakelock {
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="display-container">
+    <!-- TRIP (Parziale Azzerabile) -->
+    <div class="box box-trip">
+      <div class="label">Trip (Parziale)</div>
+      <div class="value" id="trip-dist">0.00</div>
+      <div class="unit">KM</div>
+    </div>
+
+    <!-- TOTAL (Totale Azzerabile) -->
+    <div class="box">
+      <div class="label">Totale</div>
+      <div class="value" id="total-dist">0.00</div>
+      <div class="unit">KM</div>
+    </div>
+  </div>
+
+  <div class="status-container">
+    <div class="status-gps" id="status-text">In attesa del GPS...</div>
+    <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-toggle" id="btn-toggle" onclick="toggleGPS()">Avvia GPS</button>
+    <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP</button>
+    <button class="btn-reset-total" onclick="resetTotal()">Azzera Totale</button>
+  </div>
+
+  <script>
+    let totalKm = 0.0;
+    let tripKm = 0.0;
+    let lastCoords = null;
+    let watchId = null;
+    let isTracking = false;
+    let wakeLock = null;
+
+    // --- GESTIONE WAKE LOCK (SCHERMO SEMPRE ACCESO) ---
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          document.getElementById("wakelock-text").innerText = "Schermo: Sempre Attivo 💡";
+          document.getElementById("wakelock-text").style.color = "#00e676";
+
+          wakeLock.addEventListener('release', () => {
+            document.getElementById("wakelock-text").innerText = "Schermo: Standard";
+            document.getElementById("wakelock-text").style.color = "#888";
+          });
+        } catch (err) {
+          document.getElementById("wakelock-text").innerText = `Schermo: Errore (${err.message})`;
+          document.getElementById("wakelock-text").style.color = "#ff5252";
+        }
+      } else {
+        document.getElementById("wakelock-text").innerText = "Schermo sempre acceso non supportato dal browser";
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock !== null) {
+        wakeLock.release();
+        wakeLock = null;
+      }
+    }
+
+    // Riattiva il blocca-schermo se l'utente cambia scheda/app e poi ritorna
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible' && isTracking) {
+        await requestWakeLock();
+      }
+    });
+
+    // --- CALCOLO DISTANZA E GPS ---
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Raggio Terra in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function handlePosition(position) {
+      const { latitude, longitude, accuracy } = position.coords;
+
+      document.getElementById("status-text").innerText = `GPS Attivo (Accuratezza: ±${Math.round(accuracy)}m)`;
+      document.getElementById("status-text").style.color = "#00e676";
+
+      if (lastCoords) {
+        const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
+        
+        // Filtro rumore GPS (> 5 metri e accuratezza < 30 metri)
+        if (dist > 0.005 && accuracy < 30) {
+          totalKm += dist;
+          tripKm += dist;
+          updateDisplays();
+          lastCoords = { latitude, longitude };
+        }
+      } else {
+        lastCoords = { latitude, longitude };
+      }
+    }
+
+    function handleError(error) {
+      document.getElementById("status-text").innerText = "Errore GPS: " + error.message;
+      document.getElementById("status-text").style.color = "#ff5252";
+    }
+
+    async function toggleGPS() {
+      const btn = document.getElementById("btn-toggle");
+      if (!isTracking) {
+        if ("geolocation" in navigator) {
+          watchId = navigator.geolocation.watchPosition(handlePosition, handleError, {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 10000
+          });
+          isTracking = true;
+          btn.innerText = "Pausa GPS";
+          btn.style.backgroundColor = "#ffb74d";
+          
+          // Mantiene lo schermo acceso all'avvio del GPS
+          await requestWakeLock();
+        } else {
+          alert("La geolocalizzazione non è supportata dal tuo browser.");
+        }
+      } else {
+        navigator.geolocation.clearWatch(watchId);
+        isTracking = false;
+        lastCoords = null;
+        btn.innerText = "Avvia GPS";
+        btn.style.backgroundColor = "#29b6f6";
+        document.getElementById("status-text").innerText = "GPS In pausa";
+        document.getElementById("status-text").style.color = "#ffb74d";
+        
+        // Rilascia lo schermo in modo che possa spegnersi normalmente
+        releaseWakeLock();
+      }
+    }
+
+    function updateDisplays() {
+      document.getElementById("total-dist").innerText = totalKm.toFixed(2);
+      document.getElementById("trip-dist").innerText = tripKm.toFixed(2);
+    }
+
+    function resetTrip() {
+      tripKm = 0.0;
+      updateDisplays();
+    }
+
+    function resetTotal() {
+      if (confirm("Vuoi davvero azzerare il chilometraggio totale?")) {
+        totalKm = 0.0;
+        tripKm = 0.0;
+        updateDisplays();
+      }
+    }
+  </script>
+</body>
+</html>
