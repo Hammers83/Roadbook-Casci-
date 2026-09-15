@@ -8,41 +8,48 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <title>ROADBOOK READER - Caricamento</title>
+  <title>ROADBOOK READER - Select File</title>
   
   <link rel="stylesheet" href="src/style.css">
+  <!-- Librerie PDF.js e HEIC Conversion per iPhone -->
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
 <body class="page-landing">
 
   <div class="offroad-bg-overlay"></div>
-  
-  <div class="landing-card offroad-card">
-    <div class="offroad-badge">RALLY & NAVIGATION</div>
+
+  <main class="offroad-card">
+    <div class="offroad-badge">OFF-ROAD NAVIGATION</div>
     
     <h1 class="main-title">
       <span class="title-top">ROADBOOK</span>
       <span class="title-bottom">READER</span>
     </h1>
     
-    <p class="subtitle">Carica il file (PDF) e comincia il viaggio.</p>
-    
+    <p class="subtitle">Carica il file del roadbook (PDF, PNG, JPG, HEIC) per iniziare la navigazione GPS</p>
+
     <div class="upload-area">
-      <label class="btn-offroad-primary">
-        <span class="btn-icon">📁</span>
-        <span>CARICA ROADBOOK PDF</span>
-        <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
+      <label for="pdf-file-input" class="btn-offroad-primary">
+        <span class="btn-icon">📂</span> CARICA FILE ROADBOOK
       </label>
-      <span id="upload-status" class="status-message"></span>
+      <input type="file" id="pdf-file-input" accept="application/pdf, image/png, image/jpeg, image/jpg, image/heic, .heic" onchange="loadRoadbook(event)">
+      
+      <div id="upload-status" class="status-message"></div>
     </div>
 
     <div class="offroad-decorations">
-      <span>● GPS READY</span>
-      <span>● TRIP ODOMETER</span>
+      <span>TRIP METER</span>
+      <span>•</span>
+      <span>GPS TRACK</span>
+      <span>•</span>
+      <span>AUTO-ADVANCE</span>
     </div>
-    
-    <div class="footer-credit">Powered by Angelo Martelli</div>
-  </div>
+
+    <footer class="footer-credit">
+      Powered by Angelo Martelli
+    </footer>
+  </main>
 
   <script src="src/app.js"></script>
 </body>
