@@ -3,64 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
   <title>Roadbook Trip Master</title>
-  
-  <!-- Libreria PDF.js per l'analisi del testo del Roadbook -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #121212;
       color: #ffffff;
       min-height: 100vh;
       min-height: 100dvh;
-      padding: 12px;
+      padding: 10px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       user-select: none;
     }
 
-    /* CARICAMENTO PDF */
     .pdf-upload-box {
       background-color: #1e1e1e;
       border: 1px dashed #555;
       border-radius: 8px;
-      padding: 8px;
+      padding: 6px;
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
-    .pdf-label {
-      font-size: 0.85rem;
-      color: #00e676;
-      display: block;
-      margin-bottom: 4px;
-      font-weight: bold;
-    }
+    .pdf-label { font-size: 0.8rem; color: #00e676; display: block; margin-bottom: 4px; font-weight: bold; }
     input[type="file"] { display: none; }
     .btn-file {
       display: inline-block;
-      padding: 6px 14px;
+      padding: 5px 12px;
       background-color: #333;
       color: #fff;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       border-radius: 6px;
       cursor: pointer;
       border: 1px solid #555;
     }
 
-    /* GRID RESPONSIVE */
     .main-grid {
       display: flex;
       flex-direction: column;
@@ -68,7 +53,7 @@
       flex: 1;
     }
 
-    /* SEZIONE TAPPE */
+    /* SEZIONE TAPPE CON CASELLA VISIVA */
     .stages-container {
       display: flex;
       flex-direction: column;
@@ -78,40 +63,45 @@
       background-color: #1e1e1e;
       border: 1px solid #333;
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 8px 12px;
     }
     .stage-current {
       border-left: 6px solid #ffb74d;
       background-color: #25231f;
     }
-    .stage-next {
-      border-left: 6px solid #555;
-      opacity: 0.75;
+    .stage-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    .stage-label {
-      font-size: 0.75rem;
-      color: #aaa;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+
+    /* CASELLA VISIVA DIREZIONE */
+    .direction-box {
+      width: 70px;
+      height: 70px;
+      background-color: #000;
+      border: 2px solid #ffb74d;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      flex-shrink: 0;
     }
+
+    .stage-details { flex: 1; overflow: hidden; }
+    .stage-label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; }
     .stage-title {
       font-size: clamp(1rem, 2.5vw, 1.3rem);
       font-weight: bold;
       color: #fff;
-      margin: 2px 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .stage-info {
-      font-size: 0.85rem;
-      color: #ffb74d;
-      font-family: monospace;
-    }
-    .stage-controls {
-      display: flex;
-      gap: 8px;
-    }
+    .stage-info { font-size: 0.8rem; color: #ffb74d; font-family: monospace; }
+
+    .stage-controls { display: flex; gap: 8px; margin-top: 4px; }
     .btn-stage {
       padding: 10px;
       font-size: 0.9rem;
@@ -124,50 +114,30 @@
       cursor: pointer;
     }
 
-    /* DISPLAY CONTACHILOMETRI */
-    .display-container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+    /* DISPLAY COUNTDOWN */
+    .display-container { display: flex; flex-direction: column; gap: 8px; }
     .box {
       background-color: #1e1e1e;
       border: 2px solid #333;
       border-radius: 12px;
-      padding: 10px;
+      padding: 8px;
       text-align: center;
       flex: 1;
     }
-    .box-trip {
-      border-color: #00e676;
-    }
-    .label {
-      font-size: 0.85rem;
-      color: #aaa;
-      text-transform: uppercase;
-    }
+    .box-trip { border-color: #00e676; }
+    .label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; }
     .value {
-      font-size: clamp(3rem, 8vw, 5.5rem);
+      font-size: clamp(2.8rem, 7.5vw, 5rem);
       font-weight: bold;
       font-family: monospace;
-      margin: 0;
-      line-height: 1.1;
+      line-height: 1;
     }
-    .unit {
-      font-size: 0.9rem;
-      color: #888;
-    }
+    .unit { font-size: 0.85rem; color: #888; }
 
-    /* PULSANTE UNICO AZZERA TRIP */
-    .bottom-section {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .bottom-section { margin-top: 8px; }
     .btn-reset-trip {
-      padding: 18px;
-      font-size: 1.4rem;
+      padding: 16px;
+      font-size: 1.3rem;
       font-weight: bold;
       border: none;
       border-radius: 10px;
@@ -185,116 +155,117 @@
       margin-bottom: 4px;
     }
     .status-gps { color: #ffb74d; }
-    .status-wakelock { color: #888; }
 
     @media (min-width: 600px) or (orientation: landscape) {
-      .main-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: center;
-      }
-      .display-container, .stages-container {
-        height: 100%;
-        justify-content: center;
-      }
+      .main-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
+      .display-container, .stages-container { height: 100%; justify-content: center; }
     }
   </style>
 </head>
 <body>
 
-  <!-- CARICAMENTO FILE PDF -->
   <div class="pdf-upload-box">
-    <span class="pdf-label" id="pdf-status">📄 Carica il tuo Roadbook (PDF Leopard 4x4)</span>
+    <span class="pdf-label" id="pdf-status">📄 Carica Roadbook PDF</span>
     <label class="btn-file">
       Sfoglia PDF
       <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
     </label>
   </div>
 
-  <!-- LAYOUT PRINCIPALE -->
   <div class="main-grid">
     
-    <!-- SEZIONE TAPPE -->
     <div class="stages-container">
-      <!-- Tappa Attuale -->
       <div class="stage-box stage-current">
-        <div class="stage-label" id="current-stage-num">Nota Attuale</div>
-        <div class="stage-title" id="current-stage-name">Carica un PDF o usa le tappe demo</div>
-        <div class="stage-info" id="current-stage-km">Tot: 0.00 km | Parz: 0.00 km</div>
+        <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 8)</div>
+        <div class="stage-header">
+          <!-- CASELLA VISIVA DIREZIONE -->
+          <div class="direction-box" id="current-direction-icon">⬆️</div>
+          <div class="stage-details">
+            <div class="stage-title" id="current-stage-name">PER PISTOIA EST</div>
+            <div class="stage-info" id="current-stage-target">Target Parz: 0.55 km | Tot: 0.55 km</div>
+          </div>
+        </div>
       </div>
       
-      <!-- Tappa Successiva -->
-      <div class="stage-box stage-next">
+      <div class="stage-box">
         <div class="stage-label">Nota Successiva</div>
-        <div class="stage-title" id="next-stage-name">-</div>
-        <div class="stage-info" id="next-stage-km">Tot: 0.00 km | Parz: 0.00 km</div>
+        <div class="stage-title" id="next-stage-name">Nota 2: CASELLO</div>
+        <div class="stage-info" id="next-stage-target">Target Parz: 0.76 km | Tot: 1.31 km</div>
       </div>
 
-      <!-- Navigazione tra le Tappe -->
       <div class="stage-controls">
         <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
         <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
       </div>
     </div>
 
-    <!-- CONTACHILOMETRI -->
+    <!-- CONTATORI ALLA ROVESCIA (COUNTDOWN) -->
     <div class="display-container">
       <div class="box box-trip">
-        <div class="label">Trip (Parziale GPS)</div>
-        <div class="value" id="trip-dist">0.00</div>
+        <div class="label">Mancanti al Parziale</div>
+        <div class="value" id="trip-countdown">0.55</div>
         <div class="unit">KM</div>
       </div>
 
       <div class="box">
-        <div class="label">Totale GPS</div>
-        <div class="value" id="total-dist">0.00</div>
+        <div class="label">Mancanti al Totale Tappa</div>
+        <div class="value" id="total-countdown">0.55</div>
         <div class="unit">KM</div>
       </div>
     </div>
 
   </div>
 
-  <!-- CONTROLLI IN BASSO -->
   <div class="bottom-section">
     <div class="status-container">
       <div class="status-gps" id="status-text">In attesa del GPS...</div>
       <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
     </div>
-
-    <div class="controls">
-      <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP</button>
-    </div>
+    <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
   </div>
 
   <script>
-    // Configurazione PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
 
-    // Struttura dati per le note estratte dal PDF
+    // Dati estratti di default (struttura campione)
     let route = [
-      { nota: 1, text: "PER PISTOIA EST / CASELLO", parziale: "0.000", totale: "0.000" },
-      { nota: 2, text: "DRITTO / PROSEGUI", parziale: "0.550", totale: "0.550" },
-      { nota: 3, text: "PROSEGUI", parziale: "0.760", totale: "1.310" },
-      { nota: 4, text: "PER PRATO", parziale: "0.390", totale: "1.700" }
+      { nota: 1, text: "PER PISTOIA EST", parziale: 0.000, totale: 0.000, icon: "↗️" },
+      { nota: 2, text: "CASELLO", parziale: 0.550, totale: 0.550, icon: "⬆️" },
+      { nota: 3, text: "PROSEGUI DRITTO", parziale: 0.760, totale: 1.310, icon: "⬆️" },
+      { nota: 4, text: "PER PRATO", parziale: 0.390, totale: 1.700, icon: "↘️" },
+      { nota: 5, text: "BIVIO", parziale: 2.700, totale: 4.400, icon: "🔀" },
+      { nota: 6, text: "X STADIO", parziale: 2.450, totale: 6.850, icon: "❌" },
+      { nota: 7, text: "INGRESSO PARCHEGGIO", parziale: 0.420, totale: 7.270, icon: "🅿️" },
+      { nota: 8, text: "ARRIVO", parziale: 0.090, totale: 7.360, icon: "🏁" }
     ];
     let currentStageIndex = 0;
 
-    // --- PARSER PER SPECIFICO PDF LEOPARD 4X4 ---
+    // Assegna un'icona di direzione visiva in base alle parole chiave del testo
+    function getDirectionIcon(text) {
+      const t = text.toUpperCase();
+      if (t.includes("DESTRA") || t.includes("PRATO")) return "↗️";
+      if (t.includes("SINISTRA") || t.includes("PISTOIA")) return "↖️";
+      if (t.includes("STADIO") || t.includes("X")) return "❌";
+      if (t.includes("PARCHEGGIO") || t.includes("PARK")) return "🅿️";
+      if (t.includes("ARRIVO") || t.includes("FINE")) return "🏁";
+      if (t.includes("CASELLO")) return "🛑";
+      return "⬆️";
+    }
+
+    // --- PARSER PDF AVANZATO ---
     async function loadPDF(event) {
       const file = event.target.files[0];
       if (!file || file.type !== "application/pdf") return;
 
-      document.getElementById("pdf-status").innerText = "Analisi PDF in corso...";
+      document.getElementById("pdf-status").innerText = "Lettura PDF in corso...";
 
       const fileReader = new FileReader();
       fileReader.onload = async function() {
         const typedarray = new Uint8Array(this.result);
-
         try {
           const pdf = await pdfjsLib.getDocument(typedarray).promise;
           let allItems = [];
 
-          // 1. Estrae tutti gli elementi di testo da tutte le pagine
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
@@ -302,48 +273,42 @@
             allItems = allItems.concat(pageItems);
           }
 
-          // 2. Parser custom basato sui numeri di Nota (1, 2, 3, 4...) e i dati associati
           let extractedStages = [];
           
           for (let i = 0; i < allItems.length; i++) {
             let item = allItems[i];
             
-            // Cerca se il testo è un numero di NOTA (es. "1", "2", "3")
+            // Trova la nota numerica sequenziale
             if (/^\d{1,3}$/.test(item)) {
               let notaNum = parseInt(item);
 
-              // Evita falsi positivi (es. anni o numeri di pagina)
-              if (notaNum > 0 && notaNum < 200) {
-                let noteText = "AVANZARE SEGUENDO ROADBOOK";
-                let parziale = "0.000";
-                let totale = "0.000";
+              if (notaNum > 0 && notaNum < 150) {
+                let noteText = "SEGUI STRADA";
+                let valuesFound = [];
 
-                // Analizza gli elementi vicini per trovare testi o chilometraggi (es. 0,550 o PER PRATO)
                 for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
                   let contextItem = allItems[j];
                   
-                  // Identifica stringhe di Note/Direzioni
                   if (/[A-Z]{3,}/.test(contextItem) && !contextItem.includes("AUTOSTRADA") && !contextItem.includes("DISTANZE") && !contextItem.includes("LEOPARD")) {
                     noteText = contextItem;
                   }
                   
-                  // Identifica chilometraggi (formato con virgola: 0,550 o 1,310)
                   if (/^\d{1,2},\d{3}$/.test(contextItem)) {
-                    if (parziale === "0.000") {
-                      parziale = contextItem;
-                    } else {
-                      totale = contextItem;
-                    }
+                    let val = parseFloat(contextItem.replace(',', '.'));
+                    valuesFound.push(val);
                   }
                 }
 
-                // Evita duplicati di note identiche consecutive
                 if (!extractedStages.some(s => s.nota === notaNum)) {
+                  let parziale = valuesFound.length > 0 ? valuesFound[0] : 0.0;
+                  let totale = valuesFound.length > 1 ? valuesFound[1] : parziale;
+
                   extractedStages.push({
                     nota: notaNum,
                     text: noteText,
                     parziale: parziale,
-                    totale: totale
+                    totale: totale,
+                    icon: getDirectionIcon(noteText)
                   });
                 }
               }
@@ -351,14 +316,11 @@
           }
 
           if (extractedStages.length > 0) {
-            // Ordina le note in sequenza numerica (1, 2, 3...)
             extractedStages.sort((a, b) => a.nota - b.nota);
             route = extractedStages;
             currentStageIndex = 0;
             updateStageDisplay();
-            document.getElementById("pdf-status").innerText = `✅ Caricate ${route.length} Note dal Roadbook!`;
-          } else {
-            document.getElementById("pdf-status").innerText = "⚠️ Nessuna nota trovata nel formato standard";
+            document.getElementById("pdf-status").innerText = `✅ Caricate ${route.length} Note con successo!`;
           }
         } catch (err) {
           document.getElementById("pdf-status").innerText = "Errore lettura PDF: " + err.message;
@@ -368,31 +330,33 @@
       fileReader.readAsArrayBuffer(file);
     }
 
-    // --- AGGIORNAMENTO SCHERMO TAPPE ---
+    // --- AGGIORNAMENTO SCHERMO E CONTACHILOMETRI ---
     function updateStageDisplay() {
       const current = route[currentStageIndex];
       const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
 
-      // Nota Attuale
-      document.getElementById("current-stage-num").innerText = `Nota ${current.nota} di ${route.length}`;
+      // Aggiorna Nota Attuale e Casella Visiva
+      document.getElementById("current-stage-num").innerText = `Nota Attuale (${current.nota} / ${route.length})`;
       document.getElementById("current-stage-name").innerText = current.text;
-      document.getElementById("current-stage-km").innerText = `Totale: ${current.totale} km | Parziale: ${current.parziale} km`;
+      document.getElementById("current-direction-icon").innerText = current.icon;
+      document.getElementById("current-stage-target").innerText = `Target Parz: ${current.parziale.toFixed(2)} km | Tot: ${current.totale.toFixed(2)} km`;
 
-      // Nota Successiva
+      // Aggiorna Nota Successiva
       if (next) {
         document.getElementById("next-stage-name").innerText = `Nota ${next.nota}: ${next.text}`;
-        document.getElementById("next-stage-km").innerText = `Totale: ${next.totale} km | Parziale: ${next.parziale} km`;
+        document.getElementById("next-stage-target").innerText = `Target Parz: ${next.parziale.toFixed(2)} km | Tot: ${next.totale.toFixed(2)} km`;
       } else {
         document.getElementById("next-stage-name").innerText = "FINE ROADBOOK 🏁";
-        document.getElementById("next-stage-km").innerText = "-";
+        document.getElementById("next-stage-target").innerText = "-";
       }
+
+      updateDisplays();
     }
 
     function nextStage() {
       if (currentStageIndex < route.length - 1) {
         currentStageIndex++;
-        updateStageDisplay();
-        resetTrip(); // Azzera in automatico il Trip GPS ad ogni cambio nota
+        resetTrip();
       }
     }
 
@@ -403,27 +367,12 @@
       }
     }
 
-    // --- LOGICA GPS E WAKE LOCK ---
-    let totalKm = 0.0;
-    let tripKm = 0.0;
+    // --- LOGICA GPS E CALCOLO COUNTDOWN ---
+    let totalKmTraveled = 0.0;
+    let tripKmTraveled = 0.0;
     let lastCoords = null;
     let watchId = null;
     let wakeLock = null;
-
-    async function requestWakeLock() {
-      if ('wakeLock' in navigator) {
-        try {
-          wakeLock = await navigator.wakeLock.request('screen');
-          document.getElementById("wakelock-text").innerText = "Schermo: Attivo 💡";
-          document.getElementById("wakelock-text").style.color = "#00e676";
-
-          wakeLock.addEventListener('release', () => {
-            document.getElementById("wakelock-text").innerText = "Schermo: Standard";
-            document.getElementById("wakelock-text").style.color = "#888";
-          });
-        } catch (err) {}
-      }
-    }
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371;
@@ -445,9 +394,9 @@
 
       if (lastCoords) {
         const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
-        if (dist > 0.005 && accuracy < 30) {
-          totalKm += dist;
-          tripKm += dist;
+        if (dist > 0.003 && accuracy < 30) {
+          totalKmTraveled += dist;
+          tripKmTraveled += dist;
           updateDisplays();
           lastCoords = { latitude, longitude };
         }
@@ -456,32 +405,47 @@
       }
     }
 
-    function handleError(error) {
-      document.getElementById("status-text").innerText = "Errore GPS: " + error.message;
-      document.getElementById("status-text").style.color = "#ff5252";
+    function updateDisplays() {
+      const current = route[currentStageIndex];
+
+      // Calcolo alla rovescia (Countdown)
+      let remainingTrip = current.parziale - tripKmTraveled;
+      let remainingTotal = current.totale - totalKmTraveled;
+
+      // Impedisce valori negativi se si supera il punto
+      if (remainingTrip < 0) remainingTrip = 0;
+      if (remainingTotal < 0) remainingTotal = 0;
+
+      document.getElementById("trip-countdown").innerText = remainingTrip.toFixed(2);
+      document.getElementById("total-countdown").innerText = remainingTotal.toFixed(2);
     }
 
-    async function startGPS() {
+    function resetTrip() {
+      tripKmTraveled = 0.0;
+      updateStageDisplay();
+    }
+
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          document.getElementById("wakelock-text").innerText = "Schermo: Attivo 💡";
+          document.getElementById("wakelock-text").style.color = "#00e676";
+        } catch (err) {}
+      }
+    }
+
+    function startGPS() {
       if ("geolocation" in navigator) {
-        watchId = navigator.geolocation.watchPosition(handlePosition, handleError, {
+        watchId = navigator.geolocation.watchPosition(handlePosition, (err) => {
+          document.getElementById("status-text").innerText = "Errore GPS: " + err.message;
+        }, {
           enableHighAccuracy: true,
           maximumAge: 1000,
           timeout: 10000
         });
-        await requestWakeLock();
-      } else {
-        alert("Geolocalizzazione non supportata.");
+        requestWakeLock();
       }
-    }
-
-    function updateDisplays() {
-      document.getElementById("total-dist").innerText = totalKm.toFixed(2);
-      document.getElementById("trip-dist").innerText = tripKm.toFixed(2);
-    }
-
-    function resetTrip() {
-      tripKm = 0.0;
-      updateDisplays();
     }
 
     window.addEventListener('DOMContentLoaded', () => {
