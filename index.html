@@ -2,14 +2,17 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
-  <!-- Funzionalità PWA per schermata intera -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
   <title>Roadbook Trip Master</title>
+  
+  <!-- Libreria PDF.js per la lettura dei file PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -20,33 +23,69 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #121212;
       color: #ffffff;
+      min-height: 100vh;
+      min-height: 100dvh; /* Adatta l'altezza esatta dello schermo ignorando la barra del browser */
+      padding: 12px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 100vh;
-      padding: 15px;
       user-select: none;
     }
-    
+
+    /* CARICA FILE PDF */
+    .pdf-upload-box {
+      background-color: #1e1e1e;
+      border: 1px dashed #555;
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .pdf-label {
+      font-size: 0.85rem;
+      color: #00e676;
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    input[type="file"] { display: none; }
+    .btn-file {
+      display: inline-block;
+      padding: 6px 14px;
+      background-color: #333;
+      color: #fff;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #555;
+    }
+
+    /* CONTENITORE PRINCIPALE GRID RESPONSIVE */
+    .main-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+
     /* SEZIONE TAPPE */
     .stages-container {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-top: 5px;
+      gap: 8px;
     }
     .stage-box {
       background-color: #1e1e1e;
       border: 1px solid #333;
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 10px 14px;
     }
     .stage-current {
-      border-left: 5px solid #ffb74d; /* Evidenzia la tappa attiva */
+      border-left: 6px solid #ffb74d;
       background-color: #25231f;
     }
     .stage-next {
-      border-left: 5px solid #555;
+      border-left: 6px solid #555;
       opacity: 0.8;
     }
     .stage-label {
@@ -56,7 +95,7 @@
       letter-spacing: 1px;
     }
     .stage-title {
-      font-size: 1.1rem;
+      font-size: clamp(1rem, 2.5vw, 1.4rem);
       font-weight: bold;
       color: #fff;
       white-space: nowrap;
@@ -65,17 +104,17 @@
     }
     .stage-controls {
       display: flex;
-      gap: 10px;
-      margin-top: 5px;
+      gap: 8px;
     }
     .btn-stage {
-      padding: 8px;
-      font-size: 0.85rem;
+      padding: 10px;
+      font-size: 0.9rem;
       background-color: #333;
       color: #fff;
       border: 1px solid #444;
       border-radius: 6px;
       flex: 1;
+      font-weight: bold;
     }
 
     /* SEZIONE DISPLAY CONTACHILOMETRI */
@@ -90,40 +129,46 @@
       border-radius: 12px;
       padding: 10px;
       text-align: center;
+      flex: 1;
     }
     .box-trip {
       border-color: #00e676;
     }
     .label {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #aaa;
       text-transform: uppercase;
-      letter-spacing: 1px;
     }
     .value {
-      font-size: 3.2rem;
+      font-size: clamp(3rem, 8vw, 5.5rem); /* Dimensione dinamica in base alla larghezza schermo */
       font-weight: bold;
       font-family: monospace;
-      margin: 2px 0;
+      margin: 0;
+      line-height: 1.1;
     }
     .unit {
-      font-size: 1rem;
+      font-size: 0.9rem;
       color: #888;
     }
 
-    /* CONTROLLI E PULSANTI */
+    /* CONTROLLI IN BASSO */
+    .bottom-section {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
     .controls {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      margin-bottom: 5px;
     }
     button {
-      padding: 15px;
+      padding: 14px;
       font-size: 1.1rem;
       font-weight: bold;
       border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       cursor: pointer;
       text-transform: uppercase;
     }
@@ -135,80 +180,112 @@
     .btn-reset-total {
       background-color: #ff5252;
       color: #fff;
+      font-size: 0.9rem;
+      padding: 10px;
     }
     .btn-toggle {
       background-color: #29b6f6;
       color: #000;
+      font-size: 0.9rem;
+      padding: 10px;
     }
     .status-container {
       text-align: center;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      justify-content: space-around;
     }
-    .status-gps {
-      color: #ffb74d;
-    }
-    .status-wakelock {
-      color: #888;
+    .status-gps { color: #ffb74d; }
+    .status-wakelock { color: #888; }
+
+    /* LAYOUT SPECIFICO PER TABLET O SMARTPHONE IN ORIZZONTALE (LANDSCAPE) */
+    @media (min-width: 600px) or (orientation: landscape) {
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Layout a 2 colonne per Tablet */
+        align-items: center;
+      }
+      .display-container {
+        height: 100%;
+        justify-content: center;
+      }
+      .stages-container {
+        height: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- NUOVA SEZIONE TAPPE -->
-  <div class="stages-container">
-    <!-- Tappa Attuale -->
-    <div class="stage-box stage-current">
-      <div class="stage-label" id="current-stage-num">Tappa Attuale (1/3)</div>
-      <div class="stage-title" id="current-stage-name">Partenza ➔ Controllo Tappa 1</div>
-    </div>
+  <!-- CARICA FILE PDF -->
+  <div class="pdf-upload-box">
+    <span class="pdf-label" id="pdf-status">📄 Carica Roadbook da file PDF</span>
+    <label class="btn-file">
+      Sfoglia PDF
+      <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
+    </label>
+  </div>
+
+  <!-- GRIGLIA PRINCIPALE (Adattabile Cellulare/Tablet) -->
+  <div class="main-grid">
     
-    <!-- Tappa Successiva -->
-    <div class="stage-box stage-next">
-      <div class="stage-label">Tappa Successiva</div>
-      <div class="stage-title" id="next-stage-name">Controllo Tappa 1 ➔ Passo di Montagna</div>
+    <!-- SEZIONE TAPPE -->
+    <div class="stages-container">
+      <div class="stage-box stage-current">
+        <div class="stage-label" id="current-stage-num">Tappa Attuale (1/4)</div>
+        <div class="stage-title" id="current-stage-name">Partenza ➔ Controllo Tappa 1</div>
+      </div>
+      
+      <div class="stage-box stage-next">
+        <div class="stage-label">Tappa Successiva</div>
+        <div class="stage-title" id="next-stage-name">Controllo Tappa 1 ➔ Passo di Montagna</div>
+      </div>
+
+      <div class="stage-controls">
+        <button class="btn-stage" onclick="prevStage()">◀ Tappa Prec.</button>
+        <button class="btn-stage" onclick="nextStage()">Tappa Succ. ▶</button>
+      </div>
     </div>
 
-    <!-- Selettore Tappe -->
-    <div class="stage-controls">
-      <button class="btn-stage" onclick="prevStage()">◀ Tappa Prec.</button>
-      <button class="btn-stage" onclick="nextStage()">Tappa Succ. ▶</button>
+    <!-- DISPLAY CONTACHILOMETRI -->
+    <div class="display-container">
+      <div class="box box-trip">
+        <div class="label">Trip (Parziale)</div>
+        <div class="value" id="trip-dist">0.00</div>
+        <div class="unit">KM</div>
+      </div>
+
+      <div class="box">
+        <div class="label">Totale</div>
+        <div class="value" id="total-dist">0.00</div>
+        <div class="unit">KM</div>
+      </div>
     </div>
+
   </div>
 
-  <!-- DISPLAY CONTACHILOMETRI -->
-  <div class="display-container">
-    <div class="box box-trip">
-      <div class="label">Trip (Parziale)</div>
-      <div class="value" id="trip-dist">0.00</div>
-      <div class="unit">KM</div>
+  <!-- CONTROLLI E STATO -->
+  <div class="bottom-section">
+    <div class="status-container">
+      <div class="status-gps" id="status-text">In attesa del GPS...</div>
+      <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
     </div>
 
-    <div class="box">
-      <div class="label">Totale</div>
-      <div class="value" id="total-dist">0.00</div>
-      <div class="unit">KM</div>
+    <div class="controls">
+      <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-toggle" id="btn-toggle" onclick="toggleGPS()" style="flex: 1;">Pausa GPS</button>
+        <button class="btn-reset-total" onclick="resetTotal()" style="flex: 1;">Azzera Totale</button>
+      </div>
     </div>
-  </div>
-
-  <!-- STATO SENSORI -->
-  <div class="status-container">
-    <div class="status-gps" id="status-text">In attesa del GPS...</div>
-    <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
-  </div>
-
-  <!-- PULSANTI AZIONE -->
-  <div class="controls">
-    <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP</button>
-    <button class="btn-toggle" id="btn-toggle" onclick="toggleGPS()">Pausa GPS</button>
-    <button class="btn-reset-total" onclick="resetTotal()">Azzera Totale</button>
   </div>
 
   <script>
-    // --- LISTA TAPPE PERSONALIZZABILE ---
-    const route = [
+    // Configurazione PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+
+    let route = [
       "Partenza ➔ Controllo Tappa 1",
       "Controllo Tappa 1 ➔ Passo di Montagna",
       "Passo di Montagna ➔ Bivio Cemento",
@@ -216,6 +293,48 @@
     ];
     let currentStageIndex = 0;
 
+    // --- PARSER PDF ---
+    async function loadPDF(event) {
+      const file = event.target.files[0];
+      if (!file || file.type !== "application/pdf") return;
+
+      document.getElementById("pdf-status").innerText = "Elaborazione PDF in corso...";
+
+      const fileReader = new FileReader();
+      fileReader.onload = async function() {
+        const typedarray = new Uint8Array(this.result);
+
+        try {
+          const pdf = await pdfjsLib.getDocument(typedarray).promise;
+          let extractedLines = [];
+
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            let pageLines = textContent.items
+              .map(item => item.str.trim())
+              .filter(str => str.length > 2);
+
+            extractedLines = extractedLines.concat(pageLines);
+          }
+
+          if (extractedLines.length > 0) {
+            route = extractedLines;
+            currentStageIndex = 0;
+            updateStageDisplay();
+            document.getElementById("pdf-status").innerText = `✅ PDF Caricato (${route.length} tappe estratte)`;
+          } else {
+            document.getElementById("pdf-status").innerText = "⚠️ Nessun testo rilevato nel PDF";
+          }
+        } catch (err) {
+          document.getElementById("pdf-status").innerText = "Errore lettura PDF: " + err.message;
+        }
+      };
+
+      fileReader.readAsArrayBuffer(file);
+    }
+
+    // --- GESTIONE TAPPE ---
     function updateStageDisplay() {
       const currentName = route[currentStageIndex];
       const nextName = (currentStageIndex + 1 < route.length) 
@@ -231,7 +350,7 @@
       if (currentStageIndex < route.length - 1) {
         currentStageIndex++;
         updateStageDisplay();
-        resetTrip(); // Azzera in automatico il parziale quando passi alla tappa successiva
+        resetTrip();
       }
     }
 
@@ -242,7 +361,7 @@
       }
     }
 
-    // --- LOGICA TRIP MASTER E GPS ---
+    // --- LOGICA GPS E WAKE LOCK ---
     let totalKm = 0.0;
     let tripKm = 0.0;
     let lastCoords = null;
@@ -254,17 +373,14 @@
       if ('wakeLock' in navigator) {
         try {
           wakeLock = await navigator.wakeLock.request('screen');
-          document.getElementById("wakelock-text").innerText = "Schermo: Sempre Attivo 💡";
+          document.getElementById("wakelock-text").innerText = "Schermo: Attivo 💡";
           document.getElementById("wakelock-text").style.color = "#00e676";
 
           wakeLock.addEventListener('release', () => {
             document.getElementById("wakelock-text").innerText = "Schermo: Standard";
             document.getElementById("wakelock-text").style.color = "#888";
           });
-        } catch (err) {
-          document.getElementById("wakelock-text").innerText = `Schermo: Errore (${err.message})`;
-          document.getElementById("wakelock-text").style.color = "#ff5252";
-        }
+        } catch (err) {}
       }
     }
 
@@ -274,12 +390,6 @@
         wakeLock = null;
       }
     }
-
-    document.addEventListener('visibilitychange', async () => {
-      if (wakeLock !== null && document.visibilityState === 'visible' && isTracking) {
-        await requestWakeLock();
-      }
-    });
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371;
@@ -296,7 +406,7 @@
     function handlePosition(position) {
       const { latitude, longitude, accuracy } = position.coords;
 
-      document.getElementById("status-text").innerText = `GPS Attivo (Accuratezza: ±${Math.round(accuracy)}m)`;
+      document.getElementById("status-text").innerText = `GPS: ±${Math.round(accuracy)}m`;
       document.getElementById("status-text").style.color = "#00e676";
 
       if (lastCoords) {
@@ -363,7 +473,6 @@
       }
     }
 
-    // AVVIO AUTOMATICO ALL'APERTURA
     window.addEventListener('DOMContentLoaded', () => {
       updateStageDisplay();
       toggleGPS();
