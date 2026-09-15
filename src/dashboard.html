@@ -11,7 +11,6 @@
   <title>ROADBOOK READER - Navigation</title>
   
   <link rel="stylesheet" href="style.css">
-  <!-- Leaflet CSS & JS per la mappa GPS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
@@ -19,11 +18,6 @@
 <body class="page-dashboard">
 
   <div class="view-dashboard-container">
-    
-    <header class="top-bar">
-      <span class="file-info" id="pdf-status">📄 Roadbook Attivo</span>
-      <button class="btn-danger-sm" onclick="clearPDF()">❌ ESCI / NUOVO PDF</button>
-    </header>
 
     <main class="main-grid">
       
@@ -72,11 +66,18 @@
 
     </main>
 
+    <!-- FOOTER CON INFO ROADBOOK, PULSANTE ESCI E STATUS GPS -->
     <footer class="bottom-section">
+      <div class="bottom-bar">
+        <span class="file-info" id="pdf-status">📄 Roadbook Attivo</span>
+        <button class="btn-danger-sm" onclick="clearPDF()">❌ ESCI / NUOVO PDF</button>
+      </div>
+
       <div class="status-container">
         <div class="status-gps" id="status-text">In attesa del GPS...</div>
         <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
       </div>
+      
       <div class="footer-credit dashboard-credit">Powered by Angelo Martelli</div>
     </footer>
 
