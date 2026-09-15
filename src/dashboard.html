@@ -10,7 +10,6 @@
   
   <title>ROADBOOK READER - Navigation</title>
   
-  <!-- Percorsi relativi aggiornati poiché il file è dentro src/ -->
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
@@ -48,8 +47,7 @@
         </div>
 
         <div class="stage-controls">
-          <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
-          <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
+          <button class="btn-stage btn-next-only" onclick="nextStage()">PROSSIMA NOTA ▶</button>
         </div>
       </section>
 
@@ -75,13 +73,11 @@
         <div class="status-gps" id="status-text">In attesa del GPS...</div>
         <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
       </div>
-      <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
       <div class="footer-credit dashboard-credit">Powered by Angelo Martelli</div>
     </footer>
 
   </div>
 
-  <!-- Percorso relativo al file JS dentro la stessa cartella src/ -->
   <script src="app.js"></script>
 </body>
 </html>
