@@ -173,6 +173,37 @@ body.page-dashboard {
   padding: 12px;
 }
 
+/* FINESTRA MAPPA */
+.map-container {
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.map-label {
+  font-size: 0.75rem;
+  color: #ff9800;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+#map {
+  width: 100%;
+  height: 140px;
+  border-radius: 6px;
+  background-color: #111;
+  border: 1px solid #444;
+}
+
+/* Scura lo stile predefinito di Leaflet per adattarlo alla Dark Mode */
+.leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+}
+
 .view-dashboard-container {
   display: flex;
   flex-direction: column;
