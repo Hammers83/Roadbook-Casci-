@@ -1,6 +1,8 @@
 // Powered by Angelo Martelli
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+}
 
 let route = [];
 let currentStageIndex = 0;
@@ -13,23 +15,23 @@ let watchId = null;
 let wakeLock = null;
 let isAutoAdvancing = false;
 
-// Variabili per la Mappa
+// Variabili Mappa
 let map = null;
 let userMarker = null;
 
-// INIZIALIZZAZIONE PAGINA
+// INIZIALIZZAZIONE
 document.addEventListener("DOMContentLoaded", () => {
   if (document.body.classList.contains("page-dashboard")) {
     initDashboard();
   }
 });
 
-// INIZIALIZZA DASHBOARD (in src/dashboard.html)
+// INIZIALIZZA DASHBOARD
 function initDashboard() {
   const storedRoute = sessionStorage.getItem("roadbook_route");
   const storedPdfData = sessionStorage.getItem("roadbook_pdf_data");
 
-  if (!storedRoute || !storedPdfData) {
+  if (!storedRoute) {
     window.location.href = "../index.html";
     return;
   }
@@ -38,14 +40,20 @@ function initDashboard() {
   
   initMap();
 
-  const pdfArray = new Uint8Array(JSON.parse(storedPdfData));
-  pdfjsLib.getDocument(pdfArray).promise.then(doc => {
-    pdfDoc = doc;
+  if (storedPdfData) {
+    const pdfArray = new Uint8Array(JSON.parse(storedPdfData));
+    pdfjsLib.getDocument(pdfArray).promise.then(doc => {
+      pdfDoc = doc;
+      updateStageDisplay();
+      startGPS();
+    }).catch(() => {
+      window.location.href = "../index.html";
+    });
+  } else {
+    // Se è un'immagine diretta
     updateStageDisplay();
     startGPS();
-  }).catch(() => {
-    window.location.href = "../index.html";
-  });
+  }
 }
 
 // INIZIALIZZA MAPPA (Leaflet / OpenStreetMap)
@@ -81,13 +89,73 @@ function updateMapPosition(lat, lng) {
   }
 }
 
-// PARSING E CARICAMENTO PDF (in index.html)
-async function loadPDF(event) {
-  const file = event.target.files[0];
-  if (!file || file.type !== "application/pdf") return;
+// CARICAMENTO UNIVERSELE (PDF, PNG, JPG, HEIC iPhone)
+async function loadRoadbook(event) {
+  let file = event.target.files[0];
+  if (!file) return;
 
   const statusEl = document.getElementById("upload-status");
-  if (statusEl) statusEl.innerText = "Analisi Roadbook in corso...";
+  const fileName = file.name.toLowerCase();
+
+  // 1. Conversione HEIC iPhone
+  if (fileName.endsWith(".heic") || file.type === "image/heic") {
+    if (statusEl) statusEl.innerText = "Conversione formato HEIC iPhone in corso...";
+
+    try {
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.8
+      });
+
+      const resultBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+      file = new File([resultBlob], "converted.jpg", { type: "image/jpeg" });
+    } catch (error) {
+      if (statusEl) statusEl.innerText = "Errore nella conversione HEIC.";
+      return;
+    }
+  }
+
+  // 2. Elaborazione Immagini
+  if (file.type.startsWith("image/")) {
+    if (statusEl) statusEl.innerText = "Elaborazione Immagine...";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const imageDataUrl = e.target.result;
+
+      const imageStages = [
+        {
+          nota: 1,
+          text: "ROADBOOK DA IMMAGINE",
+          parziale: 0.00,
+          totale: 0.00,
+          isImage: true,
+          imageData: imageDataUrl
+        }
+      ];
+
+      sessionStorage.setItem("roadbook_route", JSON.stringify(imageStages));
+      sessionStorage.removeItem("roadbook_pdf_data");
+      
+      window.location.href = "src/dashboard.html";
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  // 3. Elaborazione PDF
+  if (file.type === "application/pdf") {
+    loadPDF(file);
+  } else {
+    if (statusEl) statusEl.innerText = "Formato non supportato. Usa PDF, JPG, PNG o HEIC.";
+  }
+}
+
+// PARSING PDF
+async function loadPDF(file) {
+  const statusEl = document.getElementById("upload-status");
+  if (statusEl) statusEl.innerText = "Analisi Roadbook PDF in corso...";
 
   const fileReader = new FileReader();
   fileReader.onload = async function() {
@@ -179,11 +247,21 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDER GRAFICA NOTA DAL PDF
+// RENDER GRAFICA NOTA
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
   box.innerHTML = "";
+
+  if (stage.isImage && stage.imageData) {
+    const img = document.createElement("img");
+    img.src = stage.imageData;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "100%";
+    img.style.objectFit = "contain";
+    box.appendChild(img);
+    return;
+  }
 
   if (!pdfDoc || !stage.page) {
     box.innerHTML = `<span style="font-size:2rem;">📍</span>`;
@@ -250,7 +328,7 @@ function updateStageDisplay() {
   updateDisplays();
 }
 
-// AGGIORNA CONTATORI E CONTROLLO AVANZAMENTO AUTOMATICO
+// AGGIORNA CONTATORI E AVANZAMENTO AUTOMATICO
 function updateDisplays() {
   if (route.length === 0) return;
 
@@ -283,7 +361,7 @@ function updateDisplays() {
   if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
 }
 
-// LOGICA CALCOLO DISTANZA
+// DISTANZA GPS
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -296,7 +374,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// GESTIONE POSIZIONE GPS
+// POSIZIONE GPS
 function handlePosition(position) {
   const { latitude, longitude, accuracy } = position.coords;
 
@@ -321,7 +399,7 @@ function handlePosition(position) {
   }
 }
 
-// GESTIONE WAKE LOCK E AVVIO GPS
+// WAKE LOCK E AVVIO GPS
 async function requestWakeLock() {
   if ('wakeLock' in navigator) {
     try {
