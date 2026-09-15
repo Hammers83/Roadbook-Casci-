@@ -11,6 +11,9 @@
   <title>ROADBOOK READER - Navigation</title>
   
   <link rel="stylesheet" href="style.css">
+  <!-- Leaflet CSS & JS per la mappa GPS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
 <body class="page-dashboard">
@@ -29,7 +32,6 @@
         <div class="stage-box stage-current">
           <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 1)</div>
           <div class="stage-header">
-            <!-- Riquadro Grafica Direzione Ritagliata dal PDF -->
             <div class="direction-box" id="current-direction-box">
               <span style="font-size:2rem;">📍</span>
             </div>
@@ -46,8 +48,10 @@
           <div class="stage-info" id="next-stage-target">-</div>
         </div>
 
-        <div class="stage-controls">
-          <button class="btn-stage btn-next-only" onclick="nextStage()">PROSSIMA NOTA ▶</button>
+        <!-- FINESTRA MAPPA POSIZIONE ATTUALE -->
+        <div class="map-container">
+          <div class="map-label">📍 Posizione Attuale</div>
+          <div id="map"></div>
         </div>
       </section>
 
