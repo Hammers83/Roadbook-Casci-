@@ -1,3 +1,5 @@
+// Powered by Angelo Martelli
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
 
 let route = [];
@@ -10,19 +12,17 @@ let lastCoords = null;
 let watchId = null;
 let wakeLock = null;
 
-// GESTIONE VISTE
 function switchView(viewId) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(viewId).classList.add('active');
 }
 
-// CARICAMENTO E PARSING PDF
 async function loadPDF(event) {
   const file = event.target.files[0];
   if (!file || file.type !== "application/pdf") return;
 
   const statusEl = document.getElementById("upload-status");
-  statusEl.innerText = "Caricamento in corso...";
+  statusEl.innerText = "Analisi Roadbook in corso...";
 
   const fileReader = new FileReader();
   fileReader.onload = async function() {
@@ -39,7 +39,11 @@ async function loadPDF(event) {
         textContent.items.forEach(item => {
           const str = item.str.trim();
           if (str.length > 0) {
-            allItems.push({ text: str, page: i });
+            allItems.push({ 
+              text: str, 
+              page: i,
+              transform: item.transform // coordinate elemento nella pagina
+            });
           }
         });
       }
@@ -53,6 +57,7 @@ async function loadPDF(event) {
           if (notaNum > 0 && notaNum < 150) {
             let noteText = "SEGUI STRADA";
             let valuesFound = [];
+            let yPosition = entry.transform ? entry.transform[5] : 0;
 
             for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
               let contextItem = allItems[j].text;
@@ -75,7 +80,8 @@ async function loadPDF(event) {
                 text: noteText,
                 parziale: parziale,
                 totale: totale,
-                page: entry.page
+                page: entry.page,
+                yPos: yPosition
               });
             }
           }
@@ -111,7 +117,7 @@ function clearPDF() {
   switchView("view-landing");
 }
 
-// RENDERING IMMAGINE TAPPA
+// RENDERING DELLA COLONNA DIREZIONE (RITAGLIO GRAFICA DAL PDF)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   box.innerHTML = "";
@@ -123,17 +129,42 @@ async function renderStageGraphic(stage) {
 
   try {
     const page = await pdfDoc.getPage(stage.page);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale: 2.0 }); // Alta risoluzione
     
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    // Canvas nascosto per la pagina intera
+    const fullCanvas = document.createElement("canvas");
+    const fullCtx = fullCanvas.getContext("2d");
+    fullCanvas.width = viewport.width;
+    fullCanvas.height = viewport.height;
 
-    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-    box.appendChild(canvas);
+    await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
+
+    // Canvas visibile per ritagliare solo la colonna "Direzione"
+    const cropCanvas = document.createElement("canvas");
+    const cropCtx = cropCanvas.getContext("2d");
+
+    // Calcolo coordinate per la colonna centrale (Direzione)
+    const cropX = viewport.width * 0.30; 
+    const cropWidth = viewport.width * 0.40;
+    
+    // Altezza stimata della riga della nota
+    const stageHeight = viewport.height / 8;
+    
+    let cropY = (viewport.height - (stage.yPos * 2.0)) - (stageHeight / 2);
+    if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
+
+    cropCanvas.width = cropWidth;
+    cropCanvas.height = stageHeight;
+
+    cropCtx.drawImage(
+      fullCanvas,
+      cropX, cropY, cropWidth, stageHeight, // Sorgente ritagliata
+      0, 0, cropWidth, stageHeight          // Destinazione nel box
+    );
+
+    box.appendChild(cropCanvas);
   } catch (e) {
-    box.innerHTML = `<span style="font-size:2rem;">⚠️</span>`;
+    box.innerHTML = `<span style="font-size:2rem;">🛠️</span>`;
   }
 }
 
@@ -174,7 +205,6 @@ function prevStage() {
   }
 }
 
-// TRACCIAMENTO GPS E DISTANZA
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
