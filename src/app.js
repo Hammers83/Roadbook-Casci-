@@ -10,19 +10,19 @@ let lastCoords = null;
 let watchId = null;
 let wakeLock = null;
 
-// --- GESTIONE VISTE ---
+// GESTIONE VISTE
 function switchView(viewId) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(viewId).classList.add('active');
 }
 
-// --- ESTRAZIONE E CARICAMENTO PDF ---
+// CARICAMENTO E PARSING PDF
 async function loadPDF(event) {
   const file = event.target.files[0];
   if (!file || file.type !== "application/pdf") return;
 
   const statusEl = document.getElementById("upload-status");
-  statusEl.innerText = "Lettura PDF in corso...";
+  statusEl.innerText = "Caricamento in corso...";
 
   const fileReader = new FileReader();
   fileReader.onload = async function() {
@@ -87,15 +87,14 @@ async function loadPDF(event) {
         route = extractedStages;
         currentStageIndex = 0;
         
-        // Passa alla Dashboard principale ed azzera i dati
         switchView("view-dashboard");
         resetTrip();
         startGPS();
       } else {
-        statusEl.innerText = "Nessuna nota valida trovata nel PDF.";
+        statusEl.innerText = "Nessuna nota riconosciuta nel PDF.";
       }
     } catch (err) {
-      statusEl.innerText = "Errore durante la lettura: " + err.message;
+      statusEl.innerText = "Errore lettura PDF: " + err.message;
     }
   };
 
@@ -109,11 +108,10 @@ function clearPDF() {
   route = [];
   currentStageIndex = 0;
   
-  // Torna alla Landing Page
   switchView("view-landing");
 }
 
-// --- RENDERING GRAFICA ROADBOOK ---
+// RENDERING IMMAGINE TAPPA
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   box.innerHTML = "";
@@ -176,7 +174,7 @@ function prevStage() {
   }
 }
 
-// --- TRACCIAMENTO GPS E DISTANZA ---
+// TRACCIAMENTO GPS E DISTANZA
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
