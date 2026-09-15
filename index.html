@@ -24,7 +24,7 @@
       background-color: #121212;
       color: #ffffff;
       min-height: 100vh;
-      min-height: 100dvh; /* Adatta l'altezza esatta dello schermo ignorando la barra del browser */
+      min-height: 100dvh;
       padding: 12px;
       display: flex;
       flex-direction: column;
@@ -115,6 +115,7 @@
       border-radius: 6px;
       flex: 1;
       font-weight: bold;
+      cursor: pointer;
     }
 
     /* SEZIONE DISPLAY CONTACHILOMETRI */
@@ -140,7 +141,7 @@
       text-transform: uppercase;
     }
     .value {
-      font-size: clamp(3rem, 8vw, 5.5rem); /* Dimensione dinamica in base alla larghezza schermo */
+      font-size: clamp(3rem, 8vw, 5.5rem);
       font-weight: bold;
       font-family: monospace;
       margin: 0;
@@ -161,48 +162,34 @@
     .controls {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-    }
-    button {
-      padding: 14px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      text-transform: uppercase;
     }
     .btn-reset-trip {
+      padding: 18px;
+      font-size: 1.4rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      text-transform: uppercase;
       background-color: #00e676;
       color: #000;
-      font-size: 1.3rem;
-    }
-    .btn-reset-total {
-      background-color: #ff5252;
-      color: #fff;
-      font-size: 0.9rem;
-      padding: 10px;
-    }
-    .btn-toggle {
-      background-color: #29b6f6;
-      color: #000;
-      font-size: 0.9rem;
-      padding: 10px;
+      width: 100%;
     }
     .status-container {
       text-align: center;
       font-size: 0.75rem;
       display: flex;
       justify-content: space-around;
+      margin-bottom: 4px;
     }
     .status-gps { color: #ffb74d; }
     .status-wakelock { color: #888; }
 
-    /* LAYOUT SPECIFICO PER TABLET O SMARTPHONE IN ORIZZONTALE (LANDSCAPE) */
+    /* LAYOUT SPECIFICO PER TABLET O SMARTPHONE IN ORIZZONTALE */
     @media (min-width: 600px) or (orientation: landscape) {
       .main-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* Layout a 2 colonne per Tablet */
+        grid-template-columns: 1fr 1fr;
         align-items: center;
       }
       .display-container {
@@ -227,7 +214,7 @@
     </label>
   </div>
 
-  <!-- GRIGLIA PRINCIPALE (Adattabile Cellulare/Tablet) -->
+  <!-- GRIGLIA PRINCIPALE -->
   <div class="main-grid">
     
     <!-- SEZIONE TAPPE -->
@@ -274,10 +261,6 @@
 
     <div class="controls">
       <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP</button>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn-toggle" id="btn-toggle" onclick="toggleGPS()" style="flex: 1;">Pausa GPS</button>
-        <button class="btn-reset-total" onclick="resetTotal()" style="flex: 1;">Azzera Totale</button>
-      </div>
     </div>
   </div>
 
@@ -366,7 +349,6 @@
     let tripKm = 0.0;
     let lastCoords = null;
     let watchId = null;
-    let isTracking = false;
     let wakeLock = null;
 
     async function requestWakeLock() {
@@ -381,13 +363,6 @@
             document.getElementById("wakelock-text").style.color = "#888";
           });
         } catch (err) {}
-      }
-    }
-
-    function releaseWakeLock() {
-      if (wakeLock !== null) {
-        wakeLock.release();
-        wakeLock = null;
       }
     }
 
@@ -427,31 +402,16 @@
       document.getElementById("status-text").style.color = "#ff5252";
     }
 
-    async function toggleGPS() {
-      const btn = document.getElementById("btn-toggle");
-      if (!isTracking) {
-        if ("geolocation" in navigator) {
-          watchId = navigator.geolocation.watchPosition(handlePosition, handleError, {
-            enableHighAccuracy: true,
-            maximumAge: 1000,
-            timeout: 10000
-          });
-          isTracking = true;
-          btn.innerText = "Pausa GPS";
-          btn.style.backgroundColor = "#ffb74d";
-          await requestWakeLock();
-        } else {
-          alert("La geolocalizzazione non è supportata dal tuo browser.");
-        }
+    async function startGPS() {
+      if ("geolocation" in navigator) {
+        watchId = navigator.geolocation.watchPosition(handlePosition, handleError, {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000
+        });
+        await requestWakeLock();
       } else {
-        navigator.geolocation.clearWatch(watchId);
-        isTracking = false;
-        lastCoords = null;
-        btn.innerText = "Avvia GPS";
-        btn.style.backgroundColor = "#29b6f6";
-        document.getElementById("status-text").innerText = "GPS In pausa";
-        document.getElementById("status-text").style.color = "#ffb74d";
-        releaseWakeLock();
+        alert("La geolocalizzazione non è supportata dal tuo browser.");
       }
     }
 
@@ -465,17 +425,9 @@
       updateDisplays();
     }
 
-    function resetTotal() {
-      if (confirm("Vuoi davvero azzerare il chilometraggio totale?")) {
-        totalKm = 0.0;
-        tripKm = 0.0;
-        updateDisplays();
-      }
-    }
-
     window.addEventListener('DOMContentLoaded', () => {
       updateStageDisplay();
-      toggleGPS();
+      startGPS();
     });
   </script>
 </body>
