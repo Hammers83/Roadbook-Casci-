@@ -10,7 +10,7 @@
   
   <title>Roadbook Trip Master</title>
   
-  <!-- Libreria PDF.js per la lettura dei file PDF -->
+  <!-- Libreria PDF.js per l'analisi del testo del Roadbook -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 
   <style>
@@ -32,7 +32,7 @@
       user-select: none;
     }
 
-    /* CARICA FILE PDF */
+    /* CARICAMENTO PDF */
     .pdf-upload-box {
       background-color: #1e1e1e;
       border: 1px dashed #555;
@@ -60,7 +60,7 @@
       border: 1px solid #555;
     }
 
-    /* CONTENITORE PRINCIPALE GRID RESPONSIVE */
+    /* GRID RESPONSIVE */
     .main-grid {
       display: flex;
       flex-direction: column;
@@ -86,7 +86,7 @@
     }
     .stage-next {
       border-left: 6px solid #555;
-      opacity: 0.8;
+      opacity: 0.75;
     }
     .stage-label {
       font-size: 0.75rem;
@@ -95,12 +95,18 @@
       letter-spacing: 1px;
     }
     .stage-title {
-      font-size: clamp(1rem, 2.5vw, 1.4rem);
+      font-size: clamp(1rem, 2.5vw, 1.3rem);
       font-weight: bold;
       color: #fff;
+      margin: 2px 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .stage-info {
+      font-size: 0.85rem;
+      color: #ffb74d;
+      font-family: monospace;
     }
     .stage-controls {
       display: flex;
@@ -118,7 +124,7 @@
       cursor: pointer;
     }
 
-    /* SEZIONE DISPLAY CONTACHILOMETRI */
+    /* DISPLAY CONTACHILOMETRI */
     .display-container {
       display: flex;
       flex-direction: column;
@@ -152,16 +158,12 @@
       color: #888;
     }
 
-    /* CONTROLLI IN BASSO */
+    /* PULSANTE UNICO AZZERA TRIP */
     .bottom-section {
       margin-top: 10px;
       display: flex;
       flex-direction: column;
       gap: 8px;
-    }
-    .controls {
-      display: flex;
-      flex-direction: column;
     }
     .btn-reset-trip {
       padding: 18px;
@@ -185,18 +187,13 @@
     .status-gps { color: #ffb74d; }
     .status-wakelock { color: #888; }
 
-    /* LAYOUT SPECIFICO PER TABLET O SMARTPHONE IN ORIZZONTALE */
     @media (min-width: 600px) or (orientation: landscape) {
       .main-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         align-items: center;
       }
-      .display-container {
-        height: 100%;
-        justify-content: center;
-      }
-      .stages-container {
+      .display-container, .stages-container {
         height: 100%;
         justify-content: center;
       }
@@ -205,46 +202,51 @@
 </head>
 <body>
 
-  <!-- CARICA FILE PDF -->
+  <!-- CARICAMENTO FILE PDF -->
   <div class="pdf-upload-box">
-    <span class="pdf-label" id="pdf-status">📄 Carica Roadbook da file PDF</span>
+    <span class="pdf-label" id="pdf-status">📄 Carica il tuo Roadbook (PDF Leopard 4x4)</span>
     <label class="btn-file">
       Sfoglia PDF
       <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
     </label>
   </div>
 
-  <!-- GRIGLIA PRINCIPALE -->
+  <!-- LAYOUT PRINCIPALE -->
   <div class="main-grid">
     
     <!-- SEZIONE TAPPE -->
     <div class="stages-container">
+      <!-- Tappa Attuale -->
       <div class="stage-box stage-current">
-        <div class="stage-label" id="current-stage-num">Tappa Attuale (1/4)</div>
-        <div class="stage-title" id="current-stage-name">Partenza ➔ Controllo Tappa 1</div>
+        <div class="stage-label" id="current-stage-num">Nota Attuale</div>
+        <div class="stage-title" id="current-stage-name">Carica un PDF o usa le tappe demo</div>
+        <div class="stage-info" id="current-stage-km">Tot: 0.00 km | Parz: 0.00 km</div>
       </div>
       
+      <!-- Tappa Successiva -->
       <div class="stage-box stage-next">
-        <div class="stage-label">Tappa Successiva</div>
-        <div class="stage-title" id="next-stage-name">Controllo Tappa 1 ➔ Passo di Montagna</div>
+        <div class="stage-label">Nota Successiva</div>
+        <div class="stage-title" id="next-stage-name">-</div>
+        <div class="stage-info" id="next-stage-km">Tot: 0.00 km | Parz: 0.00 km</div>
       </div>
 
+      <!-- Navigazione tra le Tappe -->
       <div class="stage-controls">
-        <button class="btn-stage" onclick="prevStage()">◀ Tappa Prec.</button>
-        <button class="btn-stage" onclick="nextStage()">Tappa Succ. ▶</button>
+        <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
+        <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
       </div>
     </div>
 
-    <!-- DISPLAY CONTACHILOMETRI -->
+    <!-- CONTACHILOMETRI -->
     <div class="display-container">
       <div class="box box-trip">
-        <div class="label">Trip (Parziale)</div>
+        <div class="label">Trip (Parziale GPS)</div>
         <div class="value" id="trip-dist">0.00</div>
         <div class="unit">KM</div>
       </div>
 
       <div class="box">
-        <div class="label">Totale</div>
+        <div class="label">Totale GPS</div>
         <div class="value" id="total-dist">0.00</div>
         <div class="unit">KM</div>
       </div>
@@ -252,7 +254,7 @@
 
   </div>
 
-  <!-- CONTROLLI E STATO -->
+  <!-- CONTROLLI IN BASSO -->
   <div class="bottom-section">
     <div class="status-container">
       <div class="status-gps" id="status-text">In attesa del GPS...</div>
@@ -268,20 +270,21 @@
     // Configurazione PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
 
+    // Struttura dati per le note estratte dal PDF
     let route = [
-      "Partenza ➔ Controllo Tappa 1",
-      "Controllo Tappa 1 ➔ Passo di Montagna",
-      "Passo di Montagna ➔ Bivio Cemento",
-      "Bivio Cemento ➔ Arrivo Finale"
+      { nota: 1, text: "PER PISTOIA EST / CASELLO", parziale: "0.000", totale: "0.000" },
+      { nota: 2, text: "DRITTO / PROSEGUI", parziale: "0.550", totale: "0.550" },
+      { nota: 3, text: "PROSEGUI", parziale: "0.760", totale: "1.310" },
+      { nota: 4, text: "PER PRATO", parziale: "0.390", totale: "1.700" }
     ];
     let currentStageIndex = 0;
 
-    // --- PARSER PDF ---
+    // --- PARSER PER SPECIFICO PDF LEOPARD 4X4 ---
     async function loadPDF(event) {
       const file = event.target.files[0];
       if (!file || file.type !== "application/pdf") return;
 
-      document.getElementById("pdf-status").innerText = "Elaborazione PDF in corso...";
+      document.getElementById("pdf-status").innerText = "Analisi PDF in corso...";
 
       const fileReader = new FileReader();
       fileReader.onload = async function() {
@@ -289,25 +292,73 @@
 
         try {
           const pdf = await pdfjsLib.getDocument(typedarray).promise;
-          let extractedLines = [];
+          let allItems = [];
 
+          // 1. Estrae tutti gli elementi di testo da tutte le pagine
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            let pageLines = textContent.items
-              .map(item => item.str.trim())
-              .filter(str => str.length > 2);
-
-            extractedLines = extractedLines.concat(pageLines);
+            const pageItems = textContent.items.map(item => item.str.trim()).filter(str => str.length > 0);
+            allItems = allItems.concat(pageItems);
           }
 
-          if (extractedLines.length > 0) {
-            route = extractedLines;
+          // 2. Parser custom basato sui numeri di Nota (1, 2, 3, 4...) e i dati associati
+          let extractedStages = [];
+          
+          for (let i = 0; i < allItems.length; i++) {
+            let item = allItems[i];
+            
+            // Cerca se il testo è un numero di NOTA (es. "1", "2", "3")
+            if (/^\d{1,3}$/.test(item)) {
+              let notaNum = parseInt(item);
+
+              // Evita falsi positivi (es. anni o numeri di pagina)
+              if (notaNum > 0 && notaNum < 200) {
+                let noteText = "AVANZARE SEGUENDO ROADBOOK";
+                let parziale = "0.000";
+                let totale = "0.000";
+
+                // Analizza gli elementi vicini per trovare testi o chilometraggi (es. 0,550 o PER PRATO)
+                for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
+                  let contextItem = allItems[j];
+                  
+                  // Identifica stringhe di Note/Direzioni
+                  if (/[A-Z]{3,}/.test(contextItem) && !contextItem.includes("AUTOSTRADA") && !contextItem.includes("DISTANZE") && !contextItem.includes("LEOPARD")) {
+                    noteText = contextItem;
+                  }
+                  
+                  // Identifica chilometraggi (formato con virgola: 0,550 o 1,310)
+                  if (/^\d{1,2},\d{3}$/.test(contextItem)) {
+                    if (parziale === "0.000") {
+                      parziale = contextItem;
+                    } else {
+                      totale = contextItem;
+                    }
+                  }
+                }
+
+                // Evita duplicati di note identiche consecutive
+                if (!extractedStages.some(s => s.nota === notaNum)) {
+                  extractedStages.push({
+                    nota: notaNum,
+                    text: noteText,
+                    parziale: parziale,
+                    totale: totale
+                  });
+                }
+              }
+            }
+          }
+
+          if (extractedStages.length > 0) {
+            // Ordina le note in sequenza numerica (1, 2, 3...)
+            extractedStages.sort((a, b) => a.nota - b.nota);
+            route = extractedStages;
             currentStageIndex = 0;
             updateStageDisplay();
-            document.getElementById("pdf-status").innerText = `✅ PDF Caricato (${route.length} tappe estratte)`;
+            document.getElementById("pdf-status").innerText = `✅ Caricate ${route.length} Note dal Roadbook!`;
           } else {
-            document.getElementById("pdf-status").innerText = "⚠️ Nessun testo rilevato nel PDF";
+            document.getElementById("pdf-status").innerText = "⚠️ Nessuna nota trovata nel formato standard";
           }
         } catch (err) {
           document.getElementById("pdf-status").innerText = "Errore lettura PDF: " + err.message;
@@ -317,23 +368,31 @@
       fileReader.readAsArrayBuffer(file);
     }
 
-    // --- GESTIONE TAPPE ---
+    // --- AGGIORNAMENTO SCHERMO TAPPE ---
     function updateStageDisplay() {
-      const currentName = route[currentStageIndex];
-      const nextName = (currentStageIndex + 1 < route.length) 
-        ? route[currentStageIndex + 1] 
-        : "FINE ROADBOOK 🏁";
+      const current = route[currentStageIndex];
+      const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
 
-      document.getElementById("current-stage-num").innerText = `Tappa Attuale (${currentStageIndex + 1}/${route.length})`;
-      document.getElementById("current-stage-name").innerText = currentName;
-      document.getElementById("next-stage-name").innerText = nextName;
+      // Nota Attuale
+      document.getElementById("current-stage-num").innerText = `Nota ${current.nota} di ${route.length}`;
+      document.getElementById("current-stage-name").innerText = current.text;
+      document.getElementById("current-stage-km").innerText = `Totale: ${current.totale} km | Parziale: ${current.parziale} km`;
+
+      // Nota Successiva
+      if (next) {
+        document.getElementById("next-stage-name").innerText = `Nota ${next.nota}: ${next.text}`;
+        document.getElementById("next-stage-km").innerText = `Totale: ${next.totale} km | Parziale: ${next.parziale} km`;
+      } else {
+        document.getElementById("next-stage-name").innerText = "FINE ROADBOOK 🏁";
+        document.getElementById("next-stage-km").innerText = "-";
+      }
     }
 
     function nextStage() {
       if (currentStageIndex < route.length - 1) {
         currentStageIndex++;
         updateStageDisplay();
-        resetTrip();
+        resetTrip(); // Azzera in automatico il Trip GPS ad ogni cambio nota
       }
     }
 
@@ -411,7 +470,7 @@
         });
         await requestWakeLock();
       } else {
-        alert("La geolocalizzazione non è supportata dal tuo browser.");
+        alert("Geolocalizzazione non supportata.");
       }
     }
 
