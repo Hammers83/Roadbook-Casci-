@@ -1,0 +1,87 @@
+<!-- Powered by Angelo Martelli -->
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <title>ROADBOOK READER - Navigation</title>
+  
+  <!-- Percorsi relativi aggiornati poiché il file è dentro src/ -->
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+</head>
+<body class="page-dashboard">
+
+  <div class="view-dashboard-container">
+    
+    <header class="top-bar">
+      <span class="file-info" id="pdf-status">📄 Roadbook Attivo</span>
+      <button class="btn-danger-sm" onclick="clearPDF()">❌ ESCI / NUOVO PDF</button>
+    </header>
+
+    <main class="main-grid">
+      
+      <!-- CONTENITORE TAPPE -->
+      <section class="stages-container">
+        <div class="stage-box stage-current">
+          <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 1)</div>
+          <div class="stage-header">
+            <!-- Riquadro Grafica Direzione Ritagliata dal PDF -->
+            <div class="direction-box" id="current-direction-box">
+              <span style="font-size:2rem;">📍</span>
+            </div>
+            <div class="stage-details">
+              <div class="stage-title" id="current-stage-name">CARICAMENTO...</div>
+              <div class="stage-info" id="current-stage-target">Target Parz: 0.00 km | Tot: 0.00 km</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="stage-box">
+          <div class="stage-label">Nota Successiva</div>
+          <div class="stage-title" id="next-stage-name">-</div>
+          <div class="stage-info" id="next-stage-target">-</div>
+        </div>
+
+        <div class="stage-controls">
+          <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
+          <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
+        </div>
+      </section>
+
+      <!-- CONTATORI CHILOMETRICI -->
+      <section class="display-container">
+        <div class="box box-trip">
+          <div class="label">Mancanti al Parziale</div>
+          <div class="value" id="trip-countdown">0.00</div>
+          <div class="unit">KM</div>
+        </div>
+
+        <div class="box">
+          <div class="label">Km Totali Percorsi</div>
+          <div class="value" id="total-traveled">0.00</div>
+          <div class="unit">KM</div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="bottom-section">
+      <div class="status-container">
+        <div class="status-gps" id="status-text">In attesa del GPS...</div>
+        <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
+      </div>
+      <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
+      <div class="footer-credit dashboard-credit">Powered by Angelo Martelli</div>
+    </footer>
+
+  </div>
+
+  <!-- Percorso relativo al file JS dentro la stessa cartella src/ -->
+  <script src="app.js"></script>
+</body>
+</html>
