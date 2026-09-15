@@ -17,12 +17,14 @@ let isAutoAdvancing = false;
 let map = null;
 let userMarker = null;
 
+// INIZIALIZZAZIONE PAGINA
 document.addEventListener("DOMContentLoaded", () => {
   if (document.body.classList.contains("page-dashboard")) {
     initDashboard();
   }
 });
 
+// INIZIALIZZA DASHBOARD (in src/dashboard.html)
 function initDashboard() {
   const storedRoute = sessionStorage.getItem("roadbook_route");
   const storedPdfData = sessionStorage.getItem("roadbook_pdf_data");
@@ -46,12 +48,11 @@ function initDashboard() {
   });
 }
 
-// Inizializza la mappa OpenStreetMap con Leaflet
+// INIZIALIZZA MAPPA (Leaflet / OpenStreetMap)
 function initMap() {
   const mapEl = document.getElementById("map");
   if (!mapEl) return;
 
-  // Coordinate di default (Italia)
   map = L.map('map', {
     zoomControl: false,
     attributionControl: false
@@ -62,7 +63,7 @@ function initMap() {
   }).addTo(map);
 }
 
-// Aggiorna la posizione del marker sulla mappa
+// AGGIORNA POSIZIONE MAPPA
 function updateMapPosition(lat, lng) {
   if (!map) return;
 
@@ -80,125 +81,13 @@ function updateMapPosition(lat, lng) {
   }
 }
 
-function handlePosition(position) {
-  const { latitude, longitude, accuracy } = position.coords;
-
-  const gpsEl = document.getElementById("status-text");
-  if (gpsEl) {
-    gpsEl.innerText = `GPS: ±${Math.round(accuracy)}m`;
-    gpsEl.style.color = "#00e676";
-  }
-
-  // Aggiorna la mappa ad ogni fix GPS
-  updateMapPosition(latitude, longitude);
-
-  if (lastCoords) {
-    const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
-    if (dist > 0.003 && accuracy < 30) {
-      totalKmTraveled += dist;
-      tripKmTraveled += dist;
-      updateDisplays();
-      lastCoords = { latitude, longitude };
-    }
-  } else {
-    lastCoords = { latitude, longitude };
-  }
-}
-
-function updateDisplays() {
-  if (route.length === 0) return;
-
-  const current = route[currentStageIndex];
-  let remainingTrip = current.parziale - tripKmTraveled;
-
-  // PASSAGGIO AUTOMATICO A PARZIALE = 0
-  if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
-    isAutoAdvancing = true;
-    
-    if (currentStageIndex < route.length - 1) {
-      currentStageIndex++;
-      tripKmTraveled = 0.0;
-      
-      setTimeout(() => {
-        updateStageDisplay();
-        isAutoAdvancing = false;
-      }, 500);
-      return;
-    } else {
-      remainingTrip = 0;
-    }
-  }
-
-  if (remainingTrip < 0) remainingTrip = 0;
-
-  const countdownEl = document.getElementById("trip-countdown");
-  const totalEl = document.getElementById("total-traveled");
-
-  if (countdownEl) countdownEl.innerText = remainingTrip.toFixed(2);
-  if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
-}
-
-function updateStageDisplay() {
-  if (route.length === 0) return;
-
-  const current = route[currentStageIndex];
-  const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
-
-  document.getElementById("current-stage-num").innerText = `Nota Attuale (${current.nota} / ${route.length})`;
-  document.getElementById("current-stage-name").innerText = current.text;
-  document.getElementById("current-stage-target").innerText = `Target Parz: ${current.parziale.toFixed(2)} km | Tot: ${current.totale.toFixed(2)} km`;
-
-  renderStageGraphic(current);
-
-  if (next) {
-    document.getElementById("next-stage-name").innerText = `Nota ${next.nota}: ${next.text}`;
-    document.getElementById("next-stage-target").innerText = `Target Parz: ${next.parziale.toFixed(2)} km | Tot: ${next.totale.toFixed(2)} km`;
-  } else {
-    document.getElementById("next-stage-name").innerText = "FINE ROADBOOK 🏁";
-    document.getElementById("next-stage-target").innerText = "-";
-  }
-
-  updateDisplays();
-}
-
-// INIZIALIZZAZIONE PAGINA
-document.addEventListener("DOMContentLoaded", () => {
-  if (document.body.classList.contains("page-dashboard")) {
-    initDashboard();
-  }
-});
-
-// INIZIALIZZA DASHBOARD (in src/dashboard.html)
-function initDashboard() {
-  const storedRoute = sessionStorage.getItem("roadbook_route");
-  const storedPdfData = sessionStorage.getItem("roadbook_pdf_data");
-
-  if (!storedRoute || !storedPdfData) {
-    // Torna alla root se non sono presenti i dati
-    window.location.href = "../index.html";
-    return;
-  }
-
-  route = JSON.parse(storedRoute);
-  
-  // Ripristina il PDF memorizzato
-  const pdfArray = new Uint8Array(JSON.parse(storedPdfData));
-  pdfjsLib.getDocument(pdfArray).promise.then(doc => {
-    pdfDoc = doc;
-    updateStageDisplay();
-    startGPS();
-  }).catch(() => {
-    window.location.href = "../index.html";
-  });
-}
-
-// PARSING PDF (da index.html)
+// PARSING E CARICAMENTO PDF (in index.html)
 async function loadPDF(event) {
   const file = event.target.files[0];
   if (!file || file.type !== "application/pdf") return;
 
   const statusEl = document.getElementById("upload-status");
-  statusEl.innerText = "Analisi Roadbook in corso...";
+  if (statusEl) statusEl.innerText = "Analisi Roadbook in corso...";
 
   const fileReader = new FileReader();
   fileReader.onload = async function() {
@@ -269,16 +158,15 @@ async function loadPDF(event) {
       if (extractedStages.length > 0) {
         extractedStages.sort((a, b) => a.nota - b.nota);
         
-        // Salva i dati e naviga alla dashboard nella cartella src/
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.setItem("roadbook_pdf_data", JSON.stringify(Array.from(typedarray)));
         
         window.location.href = "src/dashboard.html";
       } else {
-        statusEl.innerText = "Nessuna nota riconosciuta nel PDF.";
+        if (statusEl) statusEl.innerText = "Nessuna nota riconosciuta nel PDF.";
       }
     } catch (err) {
-      statusEl.innerText = "Errore lettura PDF: " + err.message;
+      if (statusEl) statusEl.innerText = "Errore lettura PDF: " + err.message;
     }
   };
 
@@ -291,7 +179,7 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDERING COLONNA DIREZIONE DAL PDF
+// RENDER GRAFICA NOTA DAL PDF
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
@@ -338,6 +226,7 @@ async function renderStageGraphic(stage) {
   }
 }
 
+// AGGIORNA VISUALIZZAZIONE NOTA
 function updateStageDisplay() {
   if (route.length === 0) return;
 
@@ -361,20 +250,40 @@ function updateStageDisplay() {
   updateDisplays();
 }
 
-function nextStage() {
-  if (currentStageIndex < route.length - 1) {
-    currentStageIndex++;
-    resetTrip();
+// AGGIORNA CONTATORI E CONTROLLO AVANZAMENTO AUTOMATICO
+function updateDisplays() {
+  if (route.length === 0) return;
+
+  const current = route[currentStageIndex];
+  let remainingTrip = current.parziale - tripKmTraveled;
+
+  if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
+    isAutoAdvancing = true;
+    
+    if (currentStageIndex < route.length - 1) {
+      currentStageIndex++;
+      tripKmTraveled = 0.0;
+      
+      setTimeout(() => {
+        updateStageDisplay();
+        isAutoAdvancing = false;
+      }, 500);
+      return;
+    } else {
+      remainingTrip = 0;
+    }
   }
+
+  if (remainingTrip < 0) remainingTrip = 0;
+
+  const countdownEl = document.getElementById("trip-countdown");
+  const totalEl = document.getElementById("total-traveled");
+
+  if (countdownEl) countdownEl.innerText = remainingTrip.toFixed(2);
+  if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
 }
 
-function prevStage() {
-  if (currentStageIndex > 0) {
-    currentStageIndex--;
-    updateStageDisplay();
-  }
-}
-
+// LOGICA CALCOLO DISTANZA
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -387,6 +296,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// GESTIONE POSIZIONE GPS
 function handlePosition(position) {
   const { latitude, longitude, accuracy } = position.coords;
 
@@ -395,6 +305,8 @@ function handlePosition(position) {
     gpsEl.innerText = `GPS: ±${Math.round(accuracy)}m`;
     gpsEl.style.color = "#00e676";
   }
+
+  updateMapPosition(latitude, longitude);
 
   if (lastCoords) {
     const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
@@ -409,61 +321,7 @@ function handlePosition(position) {
   }
 }
 
-// Flag di sicurezza per evitare avanzamenti multipli incontrollati
-let isAutoAdvancing = false;
-
-function updateDisplays() {
-  if (route.length === 0) return;
-
-  const current = route[currentStageIndex];
-
-  // Calcola i km rimanenti al target del parziale
-  let remainingTrip = current.parziale - tripKmTraveled;
-
-  // CONTROLLO AVANZAMENTO AUTOMATICO
-  if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
-    isAutoAdvancing = true;
-    
-    // Se c'è una nota successiva, passa automaticamente alla tappa seguente
-    if (currentStageIndex < route.length - 1) {
-      currentStageIndex++;
-      tripKmTraveled = 0.0; // Reset del parziale per la nuova nota
-      
-      // Breve timeout per stabilizzare l'avanzamento ed evitare scatti doppi
-      setTimeout(() => {
-        updateStageDisplay();
-        isAutoAdvancing = false;
-      }, 500);
-      return;
-    } else {
-      // Se è l'ultima nota del roadbook, blocca il contatore a 0.00
-      remainingTrip = 0;
-    }
-  }
-
-  if (remainingTrip < 0) remainingTrip = 0;
-
-  // Aggiornamento interfaccia grafica
-  const countdownEl = document.getElementById("trip-countdown");
-  const totalEl = document.getElementById("total-traveled");
-
-  if (countdownEl) countdownEl.innerText = remainingTrip.toFixed(2);
-  if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
-}
-
-function nextStage() {
-  if (currentStageIndex < route.length - 1) {
-    currentStageIndex++;
-    resetTrip();
-  }
-}
-
-function resetTrip() {
-  tripKmTraveled = 0.0;
-  isAutoAdvancing = false;
-  updateStageDisplay();
-}
-
+// GESTIONE WAKE LOCK E AVVIO GPS
 async function requestWakeLock() {
   if ('wakeLock' in navigator) {
     try {
