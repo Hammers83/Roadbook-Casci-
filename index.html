@@ -8,483 +8,94 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
   <title>Roadbook Trip Master</title>
+  
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #121212;
-      color: #ffffff;
-      min-height: 100vh;
-      min-height: 100dvh;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      user-select: none;
-    }
-
-    .pdf-upload-box {
-      background-color: #1e1e1e;
-      border: 1px dashed #555;
-      border-radius: 8px;
-      padding: 8px;
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    .pdf-label { font-size: 0.8rem; color: #00e676; display: block; margin-bottom: 6px; font-weight: bold; }
-    input[type="file"] { display: none; }
-    .pdf-actions { display: flex; justify-content: center; gap: 8px; }
-    .btn-file {
-      display: inline-block;
-      padding: 6px 12px;
-      background-color: #333;
-      color: #fff;
-      font-size: 0.8rem;
-      border-radius: 6px;
-      cursor: pointer;
-      border: 1px solid #555;
-    }
-    .btn-clear-pdf {
-      display: inline-block;
-      padding: 6px 12px;
-      background-color: #331515;
-      color: #ff5252;
-      font-size: 0.8rem;
-      border-radius: 6px;
-      cursor: pointer;
-      border: 1px solid #ff5252;
-      font-weight: bold;
-    }
-
-    .main-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex: 1;
-    }
-
-    .stages-container { display: flex; flex-direction: column; gap: 8px; }
-    .stage-box {
-      background-color: #1e1e1e;
-      border: 1px solid #333;
-      border-radius: 10px;
-      padding: 8px 12px;
-    }
-    .stage-current {
-      border-left: 6px solid #ffb74d;
-      background-color: #25231f;
-    }
-    .stage-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    /* CONTENITORE IMMAGINE UFFICIALE ROADBOOK */
-    .direction-box {
-      width: 90px;
-      height: 90px;
-      background-color: #000;
-      border: 2px solid #ffb74d;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .direction-box canvas, .direction-box img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    .stage-details { flex: 1; overflow: hidden; }
-    .stage-label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; }
-    .stage-title {
-      font-size: clamp(1rem, 2.5vw, 1.3rem);
-      font-weight: bold;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .stage-info { font-size: 0.8rem; color: #ffb74d; font-family: monospace; }
-
-    .stage-controls { display: flex; gap: 8px; margin-top: 4px; }
-    .btn-stage {
-      padding: 10px;
-      font-size: 0.9rem;
-      background-color: #333;
-      color: #fff;
-      border: 1px solid #444;
-      border-radius: 6px;
-      flex: 1;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .display-container { display: flex; flex-direction: column; gap: 8px; }
-    .box {
-      background-color: #1e1e1e;
-      border: 2px solid #333;
-      border-radius: 12px;
-      padding: 8px;
-      text-align: center;
-      flex: 1;
-    }
-    .box-trip { border-color: #00e676; }
-    .label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; }
-    .value {
-      font-size: clamp(2.8rem, 7.5vw, 5rem);
-      font-weight: bold;
-      font-family: monospace;
-      line-height: 1;
-    }
-    .unit { font-size: 0.85rem; color: #888; }
-
-    .bottom-section { margin-top: 8px; }
-    .btn-reset-trip {
-      padding: 16px;
-      font-size: 1.3rem;
-      font-weight: bold;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      text-transform: uppercase;
-      background-color: #00e676;
-      color: #000;
-      width: 100%;
-    }
-    .status-container {
-      text-align: center;
-      font-size: 0.75rem;
-      display: flex;
-      justify-content: space-around;
-      margin-bottom: 4px;
-    }
-    .status-gps { color: #ffb74d; }
-
-    @media (min-width: 600px) or (orientation: landscape) {
-      .main-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
-      .display-container, .stages-container { height: 100%; justify-content: center; }
-    }
-  </style>
 </head>
 <body>
 
-  <div class="pdf-upload-box">
-    <span class="pdf-label" id="pdf-status">📄 Carica Roadbook PDF Originale</span>
-    <div class="pdf-actions">
-      <label class="btn-file">
-        Sfoglia PDF
-        <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
-      </label>
-      <button class="btn-clear-pdf" onclick="clearPDF()">❌ Rimuovi PDF</button>
+  <!-- VISTA 1: SCHERMATA DI CARICAMENTO (LANDING PAGE) -->
+  <div id="view-landing" class="view active">
+    <div class="landing-card">
+      <div class="landing-icon">🗺️</div>
+      <h1>Roadbook Trip Master</h1>
+      <p>Carica il file PDF del tuo Roadbook per iniziare la navigazione.</p>
+      
+      <div class="upload-area">
+        <label class="btn-primary btn-upload">
+          📂 Seleziona File PDF
+          <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
+        </label>
+        <span id="upload-status" class="status-message"></span>
+      </div>
     </div>
   </div>
 
-  <div class="main-grid">
+  <!-- VISTA 2: INTERFACCIA TRIP MASTER (DASHBOARD) -->
+  <div id="view-dashboard" class="view">
     
-    <div class="stages-container">
-      <div class="stage-box stage-current">
-        <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 8)</div>
-        <div class="stage-header">
-          <!-- ANTEPRIMA GRAFICA REALE DEL ROADBOOK -->
-          <div class="direction-box" id="current-direction-box">
-            <span style="font-size:2rem;">🗺️</span>
-          </div>
-          <div class="stage-details">
-            <div class="stage-title" id="current-stage-name">PER PISTOIA EST</div>
-            <div class="stage-info" id="current-stage-target">Target Parz: 0.55 km | Tot: 0.55 km</div>
+    <header class="top-bar">
+      <span class="file-info" id="pdf-status">📄 Roadbook Caricato</span>
+      <button class="btn-danger-sm" onclick="clearPDF()">❌ Esci / Nuovo PDF</button>
+    </header>
+
+    <main class="main-grid">
+      
+      <!-- CONTENITORE TAPPE -->
+      <section class="stages-container">
+        <div class="stage-box stage-current">
+          <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 1)</div>
+          <div class="stage-header">
+            <!-- Riquadro Grafica Reale Roadbook -->
+            <div class="direction-box" id="current-direction-box">
+              <span style="font-size:2rem;">📍</span>
+            </div>
+            <div class="stage-details">
+              <div class="stage-title" id="current-stage-name">CARICAMENTO...</div>
+              <div class="stage-info" id="current-stage-target">Target Parz: 0.00 km | Tot: 0.00 km</div>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div class="stage-box">
-        <div class="stage-label">Nota Successiva</div>
-        <div class="stage-title" id="next-stage-name">Nota 2: CASELLO</div>
-        <div class="stage-info" id="next-stage-target">Target Parz: 0.76 km | Tot: 1.31 km</div>
-      </div>
-
-      <div class="stage-controls">
-        <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
-        <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
-      </div>
-    </div>
-
-    <div class="display-container">
-      <div class="box box-trip">
-        <div class="label">Mancanti al Parziale</div>
-        <div class="value" id="trip-countdown">0.55</div>
-        <div class="unit">KM</div>
-      </div>
-
-      <div class="box">
-        <div class="label">Km Totali Percorsi</div>
-        <div class="value" id="total-traveled">0.00</div>
-        <div class="unit">KM</div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="bottom-section">
-    <div class="status-container">
-      <div class="status-gps" id="status-text">In attesa del GPS...</div>
-      <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
-    </div>
-    <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
-  </div>
-
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
-
-    const defaultRoute = [
-      { nota: 1, text: "PER PISTOIA EST", parziale: 0.000, totale: 0.000, page: 1 },
-      { nota: 2, text: "CASELLO", parziale: 0.550, totale: 0.550, page: 1 },
-      { nota: 3, text: "PROSEGUI DRITTO", parziale: 0.760, totale: 1.310, page: 1 },
-      { nota: 4, text: "PER PRATO", parziale: 0.390, totale: 1.700, page: 1 },
-      { nota: 5, text: "BIVIO", parziale: 2.700, totale: 4.400, page: 1 },
-      { nota: 6, text: "X STADIO", parziale: 2.450, totale: 6.850, page: 1 },
-      { nota: 7, text: "INGRESSO PARCHEGGIO", parziale: 0.420, totale: 7.270, page: 1 },
-      { nota: 8, text: "ARRIVO", parziale: 0.090, totale: 7.360, page: 1 }
-    ];
-
-    let route = JSON.parse(JSON.stringify(defaultRoute));
-    let currentStageIndex = 0;
-    let pdfDoc = null;
-
-    async function loadPDF(event) {
-      const file = event.target.files[0];
-      if (!file || file.type !== "application/pdf") return;
-
-      document.getElementById("pdf-status").innerText = "Elaborazione PDF e Grafica...";
-
-      const fileReader = new FileReader();
-      fileReader.onload = async function() {
-        const typedarray = new Uint8Array(this.result);
-        try {
-          pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
-          let allItems = [];
-          let extractedStages = [];
-
-          for (let i = 1; i <= pdfDoc.numPages; i++) {
-            const page = await pdfDoc.getPage(i);
-            const textContent = await page.getTextContent();
-            
-            textContent.items.forEach(item => {
-              const str = item.str.trim();
-              if (str.length > 0) {
-                allItems.push({ text: str, page: i });
-              }
-            });
-          }
-
-          for (let i = 0; i < allItems.length; i++) {
-            let entry = allItems[i];
-            
-            if (/^\d{1,3}$/.test(entry.text)) {
-              let notaNum = parseInt(entry.text);
-
-              if (notaNum > 0 && notaNum < 150) {
-                let noteText = "SEGUI STRADA";
-                let valuesFound = [];
-
-                for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
-                  let contextItem = allItems[j].text;
-                  
-                  if (/[A-Z]{3,}/.test(contextItem) && !contextItem.includes("AUTOSTRADA") && !contextItem.includes("DISTANZE")) {
-                    noteText = contextItem;
-                  }
-                  
-                  if (/^\d{1,2},\d{3}$/.test(contextItem)) {
-                    valuesFound.push(parseFloat(contextItem.replace(',', '.')));
-                  }
-                }
-
-                if (!extractedStages.some(s => s.nota === notaNum)) {
-                  let parziale = valuesFound.length > 0 ? valuesFound[0] : 0.0;
-                  let totale = valuesFound.length > 1 ? valuesFound[1] : parziale;
-
-                  extractedStages.push({
-                    nota: notaNum,
-                    text: noteText,
-                    parziale: parziale,
-                    totale: totale,
-                    page: entry.page
-                  });
-                }
-              }
-            }
-          }
-
-          if (extractedStages.length > 0) {
-            extractedStages.sort((a, b) => a.nota - b.nota);
-            route = extractedStages;
-            currentStageIndex = 0;
-            resetTrip();
-            document.getElementById("pdf-status").innerText = `✅ Caricate ${route.length} Note con grafica originale!`;
-          }
-        } catch (err) {
-          document.getElementById("pdf-status").innerText = "Errore lettura PDF: " + err.message;
-        }
-      };
-
-      fileReader.readAsArrayBuffer(file);
-    }
-
-    function clearPDF() {
-      document.getElementById("pdf-file-input").value = "";
-      pdfDoc = null;
-      route = JSON.parse(JSON.stringify(defaultRoute));
-      currentStageIndex = 0;
-      document.getElementById("pdf-status").innerText = "📄 Carica Roadbook PDF Originale";
-      resetTrip();
-    }
-
-    async function renderStageGraphic(stage) {
-      const box = document.getElementById("current-direction-box");
-      box.innerHTML = "";
-
-      if (!pdfDoc || !stage.page) {
-        box.innerHTML = `<span style="font-size:2rem;">📍</span>`;
-        return;
-      }
-
-      try {
-        const page = await pdfDoc.getPage(stage.page);
-        const viewport = page.getViewport({ scale: 1.5 });
         
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        <div class="stage-box">
+          <div class="stage-label">Nota Successiva</div>
+          <div class="stage-title" id="next-stage-name">-</div>
+          <div class="stage-info" id="next-stage-target">-</div>
+        </div>
 
-        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        <div class="stage-controls">
+          <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
+          <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
+        </div>
+      </section>
 
-        box.appendChild(canvas);
-      } catch (e) {
-        box.innerHTML = `<span style="font-size:2rem;">⚠️</span>`;
-      }
-    }
+      <!-- CONTATORI CHILOMETRICI -->
+      <section class="display-container">
+        <div class="box box-trip">
+          <div class="label">Mancanti al Parziale</div>
+          <div class="value" id="trip-countdown">0.00</div>
+          <div class="unit">KM</div>
+        </div>
 
-    function updateStageDisplay() {
-      const current = route[currentStageIndex];
-      const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
+        <div class="box">
+          <div class="label">Km Totali Percorsi</div>
+          <div class="value" id="total-traveled">0.00</div>
+          <div class="unit">KM</div>
+        </div>
+      </section>
 
-      document.getElementById("current-stage-num").innerText = `Nota Attuale (${current.nota} / ${route.length})`;
-      document.getElementById("current-stage-name").innerText = current.text;
-      document.getElementById("current-stage-target").innerText = `Target Parz: ${current.parziale.toFixed(2)} km | Tot: ${current.totale.toFixed(2)} km`;
+    </main>
 
-      renderStageGraphic(current);
+    <footer class="bottom-section">
+      <div class="status-container">
+        <div class="status-gps" id="status-text">In attesa del GPS...</div>
+        <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
+      </div>
+      <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
+    </footer>
 
-      if (next) {
-        document.getElementById("next-stage-name").innerText = `Nota ${next.nota}: ${next.text}`;
-        document.getElementById("next-stage-target").innerText = `Target Parz: ${next.parziale.toFixed(2)} km | Tot: ${next.totale.toFixed(2)} km`;
-      } else {
-        document.getElementById("next-stage-name").innerText = "FINE ROADBOOK 🏁";
-        document.getElementById("next-stage-target").innerText = "-";
-      }
+  </div>
 
-      updateDisplays();
-    }
-
-    function nextStage() {
-      if (currentStageIndex < route.length - 1) {
-        currentStageIndex++;
-        resetTrip();
-      }
-    }
-
-    function prevStage() {
-      if (currentStageIndex > 0) {
-        currentStageIndex--;
-        updateStageDisplay();
-      }
-    }
-
-    let totalKmTraveled = 0.0;
-    let tripKmTraveled = 0.0;
-    let lastCoords = null;
-    let watchId = null;
-    let wakeLock = null;
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    function handlePosition(position) {
-      const { latitude, longitude, accuracy } = position.coords;
-
-      document.getElementById("status-text").innerText = `GPS: ±${Math.round(accuracy)}m`;
-      document.getElementById("status-text").style.color = "#00e676";
-
-      if (lastCoords) {
-        const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
-        if (dist > 0.003 && accuracy < 30) {
-          totalKmTraveled += dist;
-          tripKmTraveled += dist;
-          updateDisplays();
-          lastCoords = { latitude, longitude };
-        }
-      } else {
-        lastCoords = { latitude, longitude };
-      }
-    }
-
-    function updateDisplays() {
-      const current = route[currentStageIndex];
-
-      let remainingTrip = current.parziale - tripKmTraveled;
-      if (remainingTrip < 0) remainingTrip = 0;
-
-      document.getElementById("trip-countdown").innerText = remainingTrip.toFixed(2);
-      document.getElementById("total-traveled").innerText = totalKmTraveled.toFixed(2);
-    }
-
-    function resetTrip() {
-      tripKmTraveled = 0.0;
-      updateStageDisplay();
-    }
-
-    async function requestWakeLock() {
-      if ('wakeLock' in navigator) {
-        try {
-          wakeLock = await navigator.wakeLock.request('screen');
-          document.getElementById("wakelock-text").innerText = "Schermo: Attivo 💡";
-          document.getElementById("wakelock-text").style.color = "#00e676";
-        } catch (err) {}
-      }
-    }
-
-    function startGPS() {
-      if ("geolocation" in navigator) {
-        watchId = navigator.geolocation.watchPosition(handlePosition, (err) => {
-          document.getElementById("status-text").innerText = "Errore GPS: " + err.message;
-        }, {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 10000
-        });
-        requestWakeLock();
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      updateStageDisplay();
-      startGPS();
-    });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
