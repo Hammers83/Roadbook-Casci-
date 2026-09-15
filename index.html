@@ -25,25 +25,42 @@
       user-select: none;
     }
 
+    /* AREA CARICAMENTO E GESTIONE PDF */
     .pdf-upload-box {
       background-color: #1e1e1e;
       border: 1px dashed #555;
       border-radius: 8px;
-      padding: 6px;
+      padding: 8px;
       text-align: center;
       margin-bottom: 8px;
     }
-    .pdf-label { font-size: 0.8rem; color: #00e676; display: block; margin-bottom: 4px; font-weight: bold; }
+    .pdf-label { font-size: 0.8rem; color: #00e676; display: block; margin-bottom: 6px; font-weight: bold; }
     input[type="file"] { display: none; }
+    .pdf-actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
     .btn-file {
       display: inline-block;
-      padding: 5px 12px;
+      padding: 6px 12px;
       background-color: #333;
       color: #fff;
       font-size: 0.8rem;
       border-radius: 6px;
       cursor: pointer;
       border: 1px solid #555;
+    }
+    .btn-clear-pdf {
+      display: inline-block;
+      padding: 6px 12px;
+      background-color: #331515;
+      color: #ff5252;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #ff5252;
+      font-weight: bold;
     }
 
     .main-grid {
@@ -164,12 +181,16 @@
 </head>
 <body>
 
+  <!-- CARICAMENTO E PULIZIA MEMORIA PDF -->
   <div class="pdf-upload-box">
     <span class="pdf-label" id="pdf-status">📄 Carica Roadbook PDF</span>
-    <label class="btn-file">
-      Sfoglia PDF
-      <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
-    </label>
+    <div class="pdf-actions">
+      <label class="btn-file">
+        Sfoglia PDF
+        <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
+      </label>
+      <button class="btn-clear-pdf" onclick="clearPDF()">❌ Rimuovi PDF</button>
+    </div>
   </div>
 
   <div class="main-grid">
@@ -227,7 +248,8 @@
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
 
-    let route = [
+    // Percorso base predefinito
+    const defaultRoute = [
       { nota: 1, text: "PER PISTOIA EST", parziale: 0.000, totale: 0.000, icon: "↗️" },
       { nota: 2, text: "CASELLO", parziale: 0.550, totale: 0.550, icon: "⬆️" },
       { nota: 3, text: "PROSEGUI DRITTO", parziale: 0.760, totale: 1.310, icon: "⬆️" },
@@ -237,6 +259,8 @@
       { nota: 7, text: "INGRESSO PARCHEGGIO", parziale: 0.420, totale: 7.270, icon: "🅿️" },
       { nota: 8, text: "ARRIVO", parziale: 0.090, totale: 7.360, icon: "🏁" }
     ];
+
+    let route = JSON.parse(JSON.stringify(defaultRoute));
     let currentStageIndex = 0;
 
     function getDirectionIcon(text) {
@@ -250,6 +274,7 @@
       return "⬆️";
     }
 
+    // --- CARICAMENTO PDF ---
     async function loadPDF(event) {
       const file = event.target.files[0];
       if (!file || file.type !== "application/pdf") return;
@@ -315,8 +340,8 @@
             extractedStages.sort((a, b) => a.nota - b.nota);
             route = extractedStages;
             currentStageIndex = 0;
-            updateStageDisplay();
-            document.getElementById("pdf-status").innerText = `✅ Caricate ${route.length} Note con successo!`;
+            resetTrip();
+            document.getElementById("pdf-status").innerText = `✅ Caricate ${route.length} Note dal PDF!`;
           }
         } catch (err) {
           document.getElementById("pdf-status").innerText = "Errore lettura PDF: " + err.message;
@@ -324,6 +349,20 @@
       };
 
       fileReader.readAsArrayBuffer(file);
+    }
+
+    // --- PULIZIA E RESET PDF ---
+    function clearPDF() {
+      // Resetta l'input del file HTML
+      document.getElementById("pdf-file-input").value = "";
+      
+      // Ripristina la rotta predefinita e azzera gli indici
+      route = JSON.parse(JSON.stringify(defaultRoute));
+      currentStageIndex = 0;
+      
+      // Resetta il messaggio di stato e i contatori GPS
+      document.getElementById("pdf-status").innerText = "📄 Carica Roadbook PDF";
+      resetTrip();
     }
 
     function updateStageDisplay() {
@@ -400,11 +439,9 @@
     function updateDisplays() {
       const current = route[currentStageIndex];
 
-      // Countdown per il Trip Parziale
       let remainingTrip = current.parziale - tripKmTraveled;
       if (remainingTrip < 0) remainingTrip = 0;
 
-      // Aggiorna i visualizzatori: Parziale a ritroso, Totale in avanti (progressivo)
       document.getElementById("trip-countdown").innerText = remainingTrip.toFixed(2);
       document.getElementById("total-traveled").innerText = totalKmTraveled.toFixed(2);
     }
