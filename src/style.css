@@ -292,15 +292,23 @@ body.page-dashboard {
 }
 
 .btn-stage {
-  padding: 10px;
-  font-size: 0.9rem;
-  background-color: #333;
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 6px;
+  padding: 16px;
+  font-size: 1.1rem;
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  color: #000;
+  border: none;
+  border-radius: 8px;
   flex: 1;
-  font-weight: bold;
+  font-weight: 900;
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+  transition: transform 0.1s ease;
+}
+
+.btn-stage:active {
+  transform: scale(0.98);
 }
 
 .display-container {
