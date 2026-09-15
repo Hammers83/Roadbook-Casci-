@@ -170,34 +170,6 @@ body.page-dashboard {
   min-height: calc(100dvh - 24px);
 }
 
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #1e1e1e;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #333;
-  margin-bottom: 10px;
-}
-
-.file-info {
-  font-size: 0.85rem;
-  color: #00e676;
-  font-weight: bold;
-}
-
-.btn-danger-sm {
-  background-color: #331515;
-  color: #ff5252;
-  border: 1px solid #ff5252;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  cursor: pointer;
-}
-
 .main-grid {
   display: flex;
   flex-direction: column;
@@ -301,7 +273,6 @@ body.page-dashboard {
   border: 1px solid #444;
 }
 
-/* Modalità scura adattata per Leaflet Tile */
 .leaflet-tile {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
 }
@@ -344,9 +315,39 @@ body.page-dashboard {
   color: #888;
 }
 
-/* FOOTER E STATUS BAR */
+/* FOOTER E BARRA INFERIORE */
 .bottom-section {
-  margin-top: 8px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bottom-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1e1e1e;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.file-info {
+  font-size: 0.85rem;
+  color: #00e676;
+  font-weight: bold;
+}
+
+.btn-danger-sm {
+  background-color: #331515;
+  color: #ff5252;
+  border: 1px solid #ff5252;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 .status-container {
@@ -354,7 +355,6 @@ body.page-dashboard {
   font-size: 0.75rem;
   display: flex;
   justify-content: space-around;
-  margin-bottom: 4px;
 }
 
 .status-gps {
@@ -362,7 +362,6 @@ body.page-dashboard {
 }
 
 .footer-credit {
-  margin-top: 16px;
   font-size: 0.7rem;
   color: #ff9800;
   letter-spacing: 1.5px;
@@ -373,7 +372,7 @@ body.page-dashboard {
 
 .dashboard-credit {
   text-align: center;
-  margin-top: 8px;
+  margin-top: 2px;
 }
 
 /* RESPONSIVE LANDSCAPE / TABLET */
