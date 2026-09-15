@@ -8,109 +8,40 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <title>ROADBOOK READER</title>
+  <title>ROADBOOK READER - Caricamento</title>
   
   <link rel="stylesheet" href="src/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
-<body>
+<body class="page-landing">
 
-  <!-- VISTA 1: LANDING PAGE OFF-ROAD -->
-  <div id="view-landing" class="view active">
-    <div class="offroad-bg-overlay"></div>
+  <div class="offroad-bg-overlay"></div>
+  
+  <div class="landing-card offroad-card">
+    <div class="offroad-badge">RALLY & NAVIGATION</div>
     
-    <div class="landing-card offroad-card">
-      <div class="offroad-badge">RALLY & NAVIGATION</div>
-      
-      <h1 class="main-title">
-        <span class="title-top">ROADBOOK</span>
-        <span class="title-bottom">READER</span>
-      </h1>
-      
-      <p class="subtitle">Carica il tuo percorso (PDF) e comincia il viaggio.</p>
-      
-      <div class="upload-area">
-        <label class="btn-offroad-primary">
-          <span class="btn-icon">📁</span>
-          <span>CARICA ROADBOOK PDF</span>
-          <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
-        </label>
-        <span id="upload-status" class="status-message"></span>
-      </div>
-
-      <div class="offroad-decorations">
-        <span>● GPS READY</span>
-        <span>● TRIP ODOMETER</span>
-      </div>
-      
-      <div class="footer-credit">Powered by Angelo Martelli</div>
+    <h1 class="main-title">
+      <span class="title-top">ROADBOOK</span>
+      <span class="title-bottom">READER</span>
+    </h1>
+    
+    <p class="subtitle">Carica la tua nota di percorso PDF e comincia la traccia.</p>
+    
+    <div class="upload-area">
+      <label class="btn-offroad-primary">
+        <span class="btn-icon">📁</span>
+        <span>CARICA ROADBOOK PDF</span>
+        <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
+      </label>
+      <span id="upload-status" class="status-message"></span>
     </div>
-  </div>
 
-  <!-- VISTA 2: DASHBOARD NAVIGATION -->
-  <div id="view-dashboard" class="view">
+    <div class="offroad-decorations">
+      <span>● GPS READY</span>
+      <span>● TRIP ODOMETER</span>
+    </div>
     
-    <header class="top-bar">
-      <span class="file-info" id="pdf-status">📄 Roadbook Attivo</span>
-      <button class="btn-danger-sm" onclick="clearPDF()">❌ ESCI / NUOVO PDF</button>
-    </header>
-
-    <main class="main-grid">
-      
-      <!-- CONTENITORE TAPPE -->
-      <section class="stages-container">
-        <div class="stage-box stage-current">
-          <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 1)</div>
-          <div class="stage-header">
-            <!-- Riquadro Grafica Direzione Ritagliata dal PDF -->
-            <div class="direction-box" id="current-direction-box">
-              <span style="font-size:2rem;">📍</span>
-            </div>
-            <div class="stage-details">
-              <div class="stage-title" id="current-stage-name">CARICAMENTO...</div>
-              <div class="stage-info" id="current-stage-target">Target Parz: 0.00 km | Tot: 0.00 km</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="stage-box">
-          <div class="stage-label">Nota Successiva</div>
-          <div class="stage-title" id="next-stage-name">-</div>
-          <div class="stage-info" id="next-stage-target">-</div>
-        </div>
-
-        <div class="stage-controls">
-          <button class="btn-stage" onclick="prevStage()">◀ Nota Prec.</button>
-          <button class="btn-stage" onclick="nextStage()">Nota Succ. ▶</button>
-        </div>
-      </section>
-
-      <!-- CONTATORI CHILOMETRICI -->
-      <section class="display-container">
-        <div class="box box-trip">
-          <div class="label">Mancanti al Parziale</div>
-          <div class="value" id="trip-countdown">0.00</div>
-          <div class="unit">KM</div>
-        </div>
-
-        <div class="box">
-          <div class="label">Km Totali Percorsi</div>
-          <div class="value" id="total-traveled">0.00</div>
-          <div class="unit">KM</div>
-        </div>
-      </section>
-
-    </main>
-
-    <footer class="bottom-section">
-      <div class="status-container">
-        <div class="status-gps" id="status-text">In attesa del GPS...</div>
-        <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
-      </div>
-      <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
-      <div class="footer-credit dashboard-credit">Powered by Angelo Martelli</div>
-    </footer>
-
+    <div class="footer-credit">Powered by Angelo Martelli</div>
   </div>
 
   <script src="src/app.js"></script>
