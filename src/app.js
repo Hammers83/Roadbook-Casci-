@@ -12,11 +12,38 @@ let lastCoords = null;
 let watchId = null;
 let wakeLock = null;
 
-function switchView(viewId) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById(viewId).classList.add('active');
+// INIZIALIZZAZIONE PAGINA
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.body.classList.contains("page-dashboard")) {
+    initDashboard();
+  }
+});
+
+// INIZIALIZZA DASHBOARD (in src/dashboard.html)
+function initDashboard() {
+  const storedRoute = sessionStorage.getItem("roadbook_route");
+  const storedPdfData = sessionStorage.getItem("roadbook_pdf_data");
+
+  if (!storedRoute || !storedPdfData) {
+    // Torna alla root se non sono presenti i dati
+    window.location.href = "../index.html";
+    return;
+  }
+
+  route = JSON.parse(storedRoute);
+  
+  // Ripristina il PDF memorizzato
+  const pdfArray = new Uint8Array(JSON.parse(storedPdfData));
+  pdfjsLib.getDocument(pdfArray).promise.then(doc => {
+    pdfDoc = doc;
+    updateStageDisplay();
+    startGPS();
+  }).catch(() => {
+    window.location.href = "../index.html";
+  });
 }
 
+// PARSING PDF (da index.html)
 async function loadPDF(event) {
   const file = event.target.files[0];
   if (!file || file.type !== "application/pdf") return;
@@ -26,7 +53,9 @@ async function loadPDF(event) {
 
   const fileReader = new FileReader();
   fileReader.onload = async function() {
-    const typedarray = new Uint8Array(this.result);
+    const arrayBuffer = this.result;
+    const typedarray = new Uint8Array(arrayBuffer);
+    
     try {
       pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
       let allItems = [];
@@ -42,7 +71,7 @@ async function loadPDF(event) {
             allItems.push({ 
               text: str, 
               page: i,
-              transform: item.transform // coordinate elemento nella pagina
+              transform: item.transform
             });
           }
         });
@@ -90,12 +119,12 @@ async function loadPDF(event) {
 
       if (extractedStages.length > 0) {
         extractedStages.sort((a, b) => a.nota - b.nota);
-        route = extractedStages;
-        currentStageIndex = 0;
         
-        switchView("view-dashboard");
-        resetTrip();
-        startGPS();
+        // Salva i dati e naviga alla dashboard nella cartella src/
+        sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
+        sessionStorage.setItem("roadbook_pdf_data", JSON.stringify(Array.from(typedarray)));
+        
+        window.location.href = "src/dashboard.html";
       } else {
         statusEl.innerText = "Nessuna nota riconosciuta nel PDF.";
       }
@@ -108,18 +137,15 @@ async function loadPDF(event) {
 }
 
 function clearPDF() {
-  document.getElementById("pdf-file-input").value = "";
-  document.getElementById("upload-status").innerText = "";
-  pdfDoc = null;
-  route = [];
-  currentStageIndex = 0;
-  
-  switchView("view-landing");
+  sessionStorage.removeItem("roadbook_route");
+  sessionStorage.removeItem("roadbook_pdf_data");
+  window.location.href = "../index.html";
 }
 
-// RENDERING DELLA COLONNA DIREZIONE (RITAGLIO GRAFICA DAL PDF)
+// RENDERING COLONNA DIREZIONE DAL PDF
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
+  if (!box) return;
   box.innerHTML = "";
 
   if (!pdfDoc || !stage.page) {
@@ -129,9 +155,8 @@ async function renderStageGraphic(stage) {
 
   try {
     const page = await pdfDoc.getPage(stage.page);
-    const viewport = page.getViewport({ scale: 2.0 }); // Alta risoluzione
+    const viewport = page.getViewport({ scale: 2.0 });
     
-    // Canvas nascosto per la pagina intera
     const fullCanvas = document.createElement("canvas");
     const fullCtx = fullCanvas.getContext("2d");
     fullCanvas.width = viewport.width;
@@ -139,15 +164,11 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
-    // Canvas visibile per ritagliare solo la colonna "Direzione"
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
 
-    // Calcolo coordinate per la colonna centrale (Direzione)
     const cropX = viewport.width * 0.30; 
     const cropWidth = viewport.width * 0.40;
-    
-    // Altezza stimata della riga della nota
     const stageHeight = viewport.height / 8;
     
     let cropY = (viewport.height - (stage.yPos * 2.0)) - (stageHeight / 2);
@@ -158,8 +179,8 @@ async function renderStageGraphic(stage) {
 
     cropCtx.drawImage(
       fullCanvas,
-      cropX, cropY, cropWidth, stageHeight, // Sorgente ritagliata
-      0, 0, cropWidth, stageHeight          // Destinazione nel box
+      cropX, cropY, cropWidth, stageHeight,
+      0, 0, cropWidth, stageHeight
     );
 
     box.appendChild(cropCanvas);
@@ -220,8 +241,11 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 function handlePosition(position) {
   const { latitude, longitude, accuracy } = position.coords;
 
-  document.getElementById("status-text").innerText = `GPS: ±${Math.round(accuracy)}m`;
-  document.getElementById("status-text").style.color = "#00e676";
+  const gpsEl = document.getElementById("status-text");
+  if (gpsEl) {
+    gpsEl.innerText = `GPS: ±${Math.round(accuracy)}m`;
+    gpsEl.style.color = "#00e676";
+  }
 
   if (lastCoords) {
     const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
@@ -244,8 +268,11 @@ function updateDisplays() {
   let remainingTrip = current.parziale - tripKmTraveled;
   if (remainingTrip < 0) remainingTrip = 0;
 
-  document.getElementById("trip-countdown").innerText = remainingTrip.toFixed(2);
-  document.getElementById("total-traveled").innerText = totalKmTraveled.toFixed(2);
+  const countdownEl = document.getElementById("trip-countdown");
+  const totalEl = document.getElementById("total-traveled");
+
+  if (countdownEl) countdownEl.innerText = remainingTrip.toFixed(2);
+  if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
 }
 
 function resetTrip() {
@@ -257,8 +284,11 @@ async function requestWakeLock() {
   if ('wakeLock' in navigator) {
     try {
       wakeLock = await navigator.wakeLock.request('screen');
-      document.getElementById("wakelock-text").innerText = "Schermo: Attivo 💡";
-      document.getElementById("wakelock-text").style.color = "#00e676";
+      const lockEl = document.getElementById("wakelock-text");
+      if (lockEl) {
+        lockEl.innerText = "Schermo: Attivo 💡";
+        lockEl.style.color = "#00e676";
+      }
     } catch (err) {}
   }
 }
@@ -266,7 +296,8 @@ async function requestWakeLock() {
 function startGPS() {
   if ("geolocation" in navigator && !watchId) {
     watchId = navigator.geolocation.watchPosition(handlePosition, (err) => {
-      document.getElementById("status-text").innerText = "Errore GPS: " + err.message;
+      const gpsEl = document.getElementById("status-text");
+      if (gpsEl) gpsEl.innerText = "Errore GPS: " + err.message;
     }, {
       enableHighAccuracy: true,
       maximumAge: 1000,
