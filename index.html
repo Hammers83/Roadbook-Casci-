@@ -7,36 +7,50 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <title>Roadbook Trip Master</title>
+  <title>ROADBOOK READER</title>
   
-  <link rel="stylesheet" href="style.css">
+  <!-- Riferimento a CSS dentro la cartella src -->
+  <link rel="stylesheet" href="src/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
 <body>
 
-  <!-- VISTA 1: SCHERMATA DI CARICAMENTO (LANDING PAGE) -->
+  <!-- VISTA 1: LANDING PAGE OFF-ROAD -->
   <div id="view-landing" class="view active">
-    <div class="landing-card">
-      <div class="landing-icon">🗺️</div>
-      <h1>Roadbook Trip Master</h1>
-      <p>Carica il file PDF del tuo Roadbook per iniziare la navigazione.</p>
+    <div class="offroad-bg-overlay"></div>
+    
+    <div class="landing-card offroad-card">
+      <div class="offroad-badge">RALLY & NAVIGATION</div>
+      
+      <h1 class="main-title">
+        <span class="title-top">ROADBOOK</span>
+        <span class="title-bottom">READER</span>
+      </h1>
+      
+      <p class="subtitle">Carica la tua nota di percorso PDF e comincia la traccia.</p>
       
       <div class="upload-area">
-        <label class="btn-primary btn-upload">
-          📂 Seleziona File PDF
+        <label class="btn-offroad-primary">
+          <span class="btn-icon">📁</span>
+          <span>CARICA ROADBOOK PDF</span>
           <input type="file" id="pdf-file-input" accept="application/pdf" onchange="loadPDF(event)">
         </label>
         <span id="upload-status" class="status-message"></span>
       </div>
+
+      <div class="offroad-decorations">
+        <span>● GPS READY</span>
+        <span>● TRIP ODOMETER</span>
+      </div>
     </div>
   </div>
 
-  <!-- VISTA 2: INTERFACCIA TRIP MASTER (DASHBOARD) -->
+  <!-- VISTA 2: DASHBOARD NAVIGATION -->
   <div id="view-dashboard" class="view">
     
     <header class="top-bar">
-      <span class="file-info" id="pdf-status">📄 Roadbook Caricato</span>
-      <button class="btn-danger-sm" onclick="clearPDF()">❌ Esci / Nuovo PDF</button>
+      <span class="file-info" id="pdf-status">📄 Roadbook Attivo</span>
+      <button class="btn-danger-sm" onclick="clearPDF()">❌ ESCI / NUOVO PDF</button>
     </header>
 
     <main class="main-grid">
@@ -96,6 +110,7 @@
 
   </div>
 
-  <script src="app.js"></script>
+  <!-- Riferimento a JS dentro la cartella src -->
+  <script src="src/app.js"></script>
 </body>
 </html>
