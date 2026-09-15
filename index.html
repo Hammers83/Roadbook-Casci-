@@ -1,3 +1,4 @@
+<!-- Powered by Angelo Martelli -->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -9,7 +10,6 @@
   
   <title>ROADBOOK READER</title>
   
-  <!-- Riferimento a CSS dentro la cartella src -->
   <link rel="stylesheet" href="src/style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
@@ -27,7 +27,7 @@
         <span class="title-bottom">READER</span>
       </h1>
       
-      <p class="subtitle">Carica la tua nota di percorso PDF e comincia la traccia.</p>
+      <p class="subtitle">Carica il tuo percorso (PDF) e comincia il viaggio.</p>
       
       <div class="upload-area">
         <label class="btn-offroad-primary">
@@ -42,6 +42,8 @@
         <span>● GPS READY</span>
         <span>● TRIP ODOMETER</span>
       </div>
+      
+      <div class="footer-credit">Powered by Angelo Martelli</div>
     </div>
   </div>
 
@@ -60,7 +62,7 @@
         <div class="stage-box stage-current">
           <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 1)</div>
           <div class="stage-header">
-            <!-- Riquadro Grafica Reale Roadbook -->
+            <!-- Riquadro Grafica Direzione Ritagliata dal PDF -->
             <div class="direction-box" id="current-direction-box">
               <span style="font-size:2rem;">📍</span>
             </div>
@@ -106,11 +108,11 @@
         <div class="status-wakelock" id="wakelock-text">Schermo: Standard</div>
       </div>
       <button class="btn-reset-trip" onclick="resetTrip()">AZZERA TRIP (AZZERA PARZIALE)</button>
+      <div class="footer-credit dashboard-credit">Powered by Angelo Martelli</div>
     </footer>
 
   </div>
 
-  <!-- Riferimento a JS dentro la cartella src -->
   <script src="src/app.js"></script>
 </body>
 </html>
