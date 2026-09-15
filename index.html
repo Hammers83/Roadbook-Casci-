@@ -114,7 +114,7 @@
       cursor: pointer;
     }
 
-    /* DISPLAY COUNTDOWN */
+    /* DISPLAY CONTACHILOMETRI */
     .display-container { display: flex; flex-direction: column; gap: 8px; }
     .box {
       background-color: #1e1e1e;
@@ -179,7 +179,7 @@
         <div class="stage-label" id="current-stage-num">Nota Attuale (1 / 8)</div>
         <div class="stage-header">
           <!-- CASELLA VISIVA DIREZIONE -->
-          <div class="direction-box" id="current-direction-icon">⬆️</div>
+          <div class="direction-box" id="current-direction-icon">↗️</div>
           <div class="stage-details">
             <div class="stage-title" id="current-stage-name">PER PISTOIA EST</div>
             <div class="stage-info" id="current-stage-target">Target Parz: 0.55 km | Tot: 0.55 km</div>
@@ -199,7 +199,7 @@
       </div>
     </div>
 
-    <!-- CONTATORI ALLA ROVESCIA (COUNTDOWN) -->
+    <!-- CONTATORI CHILOMETRICI -->
     <div class="display-container">
       <div class="box box-trip">
         <div class="label">Mancanti al Parziale</div>
@@ -208,8 +208,8 @@
       </div>
 
       <div class="box">
-        <div class="label">Mancanti al Totale Tappa</div>
-        <div class="value" id="total-countdown">0.55</div>
+        <div class="label">Km Totali Percorsi</div>
+        <div class="value" id="total-traveled">0.00</div>
         <div class="unit">KM</div>
       </div>
     </div>
@@ -227,7 +227,6 @@
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
 
-    // Dati estratti di default (struttura campione)
     let route = [
       { nota: 1, text: "PER PISTOIA EST", parziale: 0.000, totale: 0.000, icon: "↗️" },
       { nota: 2, text: "CASELLO", parziale: 0.550, totale: 0.550, icon: "⬆️" },
@@ -240,7 +239,6 @@
     ];
     let currentStageIndex = 0;
 
-    // Assegna un'icona di direzione visiva in base alle parole chiave del testo
     function getDirectionIcon(text) {
       const t = text.toUpperCase();
       if (t.includes("DESTRA") || t.includes("PRATO")) return "↗️";
@@ -252,7 +250,6 @@
       return "⬆️";
     }
 
-    // --- PARSER PDF AVANZATO ---
     async function loadPDF(event) {
       const file = event.target.files[0];
       if (!file || file.type !== "application/pdf") return;
@@ -278,7 +275,6 @@
           for (let i = 0; i < allItems.length; i++) {
             let item = allItems[i];
             
-            // Trova la nota numerica sequenziale
             if (/^\d{1,3}$/.test(item)) {
               let notaNum = parseInt(item);
 
@@ -330,18 +326,15 @@
       fileReader.readAsArrayBuffer(file);
     }
 
-    // --- AGGIORNAMENTO SCHERMO E CONTACHILOMETRI ---
     function updateStageDisplay() {
       const current = route[currentStageIndex];
       const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
 
-      // Aggiorna Nota Attuale e Casella Visiva
       document.getElementById("current-stage-num").innerText = `Nota Attuale (${current.nota} / ${route.length})`;
       document.getElementById("current-stage-name").innerText = current.text;
       document.getElementById("current-direction-icon").innerText = current.icon;
       document.getElementById("current-stage-target").innerText = `Target Parz: ${current.parziale.toFixed(2)} km | Tot: ${current.totale.toFixed(2)} km`;
 
-      // Aggiorna Nota Successiva
       if (next) {
         document.getElementById("next-stage-name").innerText = `Nota ${next.nota}: ${next.text}`;
         document.getElementById("next-stage-target").innerText = `Target Parz: ${next.parziale.toFixed(2)} km | Tot: ${next.totale.toFixed(2)} km`;
@@ -367,7 +360,6 @@
       }
     }
 
-    // --- LOGICA GPS E CALCOLO COUNTDOWN ---
     let totalKmTraveled = 0.0;
     let tripKmTraveled = 0.0;
     let lastCoords = null;
@@ -408,16 +400,13 @@
     function updateDisplays() {
       const current = route[currentStageIndex];
 
-      // Calcolo alla rovescia (Countdown)
+      // Countdown per il Trip Parziale
       let remainingTrip = current.parziale - tripKmTraveled;
-      let remainingTotal = current.totale - totalKmTraveled;
-
-      // Impedisce valori negativi se si supera il punto
       if (remainingTrip < 0) remainingTrip = 0;
-      if (remainingTotal < 0) remainingTotal = 0;
 
+      // Aggiorna i visualizzatori: Parziale a ritroso, Totale in avanti (progressivo)
       document.getElementById("trip-countdown").innerText = remainingTrip.toFixed(2);
-      document.getElementById("total-countdown").innerText = remainingTotal.toFixed(2);
+      document.getElementById("total-traveled").innerText = totalKmTraveled.toFixed(2);
     }
 
     function resetTrip() {
