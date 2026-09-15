@@ -11,6 +11,155 @@ let tripKmTraveled = 0.0;
 let lastCoords = null;
 let watchId = null;
 let wakeLock = null;
+let isAutoAdvancing = false;
+
+// Variabili per la Mappa
+let map = null;
+let userMarker = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.body.classList.contains("page-dashboard")) {
+    initDashboard();
+  }
+});
+
+function initDashboard() {
+  const storedRoute = sessionStorage.getItem("roadbook_route");
+  const storedPdfData = sessionStorage.getItem("roadbook_pdf_data");
+
+  if (!storedRoute || !storedPdfData) {
+    window.location.href = "../index.html";
+    return;
+  }
+
+  route = JSON.parse(storedRoute);
+  
+  initMap();
+
+  const pdfArray = new Uint8Array(JSON.parse(storedPdfData));
+  pdfjsLib.getDocument(pdfArray).promise.then(doc => {
+    pdfDoc = doc;
+    updateStageDisplay();
+    startGPS();
+  }).catch(() => {
+    window.location.href = "../index.html";
+  });
+}
+
+// Inizializza la mappa OpenStreetMap con Leaflet
+function initMap() {
+  const mapEl = document.getElementById("map");
+  if (!mapEl) return;
+
+  // Coordinate di default (Italia)
+  map = L.map('map', {
+    zoomControl: false,
+    attributionControl: false
+  }).setView([41.9028, 12.4964], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+}
+
+// Aggiorna la posizione del marker sulla mappa
+function updateMapPosition(lat, lng) {
+  if (!map) return;
+
+  if (!userMarker) {
+    userMarker = L.circleMarker([lat, lng], {
+      color: '#00e676',
+      fillColor: '#00e676',
+      fillOpacity: 0.8,
+      radius: 8
+    }).addTo(map);
+    map.setView([lat, lng], 16);
+  } else {
+    userMarker.setLatLng([lat, lng]);
+    map.panTo([lat, lng]);
+  }
+}
+
+function handlePosition(position) {
+  const { latitude, longitude, accuracy } = position.coords;
+
+  const gpsEl = document.getElementById("status-text");
+  if (gpsEl) {
+    gpsEl.innerText = `GPS: ±${Math.round(accuracy)}m`;
+    gpsEl.style.color = "#00e676";
+  }
+
+  // Aggiorna la mappa ad ogni fix GPS
+  updateMapPosition(latitude, longitude);
+
+  if (lastCoords) {
+    const dist = calculateDistance(lastCoords.latitude, lastCoords.longitude, latitude, longitude);
+    if (dist > 0.003 && accuracy < 30) {
+      totalKmTraveled += dist;
+      tripKmTraveled += dist;
+      updateDisplays();
+      lastCoords = { latitude, longitude };
+    }
+  } else {
+    lastCoords = { latitude, longitude };
+  }
+}
+
+function updateDisplays() {
+  if (route.length === 0) return;
+
+  const current = route[currentStageIndex];
+  let remainingTrip = current.parziale - tripKmTraveled;
+
+  // PASSAGGIO AUTOMATICO A PARZIALE = 0
+  if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
+    isAutoAdvancing = true;
+    
+    if (currentStageIndex < route.length - 1) {
+      currentStageIndex++;
+      tripKmTraveled = 0.0;
+      
+      setTimeout(() => {
+        updateStageDisplay();
+        isAutoAdvancing = false;
+      }, 500);
+      return;
+    } else {
+      remainingTrip = 0;
+    }
+  }
+
+  if (remainingTrip < 0) remainingTrip = 0;
+
+  const countdownEl = document.getElementById("trip-countdown");
+  const totalEl = document.getElementById("total-traveled");
+
+  if (countdownEl) countdownEl.innerText = remainingTrip.toFixed(2);
+  if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
+}
+
+function updateStageDisplay() {
+  if (route.length === 0) return;
+
+  const current = route[currentStageIndex];
+  const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
+
+  document.getElementById("current-stage-num").innerText = `Nota Attuale (${current.nota} / ${route.length})`;
+  document.getElementById("current-stage-name").innerText = current.text;
+  document.getElementById("current-stage-target").innerText = `Target Parz: ${current.parziale.toFixed(2)} km | Tot: ${current.totale.toFixed(2)} km`;
+
+  renderStageGraphic(current);
+
+  if (next) {
+    document.getElementById("next-stage-name").innerText = `Nota ${next.nota}: ${next.text}`;
+    document.getElementById("next-stage-target").innerText = `Target Parz: ${next.parziale.toFixed(2)} km | Tot: ${next.totale.toFixed(2)} km`;
+  } else {
+    document.getElementById("next-stage-name").innerText = "FINE ROADBOOK 🏁";
+    document.getElementById("next-stage-target").innerText = "-";
+  }
+
+  updateDisplays();
+}
 
 // INIZIALIZZAZIONE PAGINA
 document.addEventListener("DOMContentLoaded", () => {
