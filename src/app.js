@@ -19,13 +19,11 @@ let isAutoAdvancing = false;
 let map = null;
 let userMarker = null;
 
-// Context Web Audio per il suono di avviso
+// Context Web Audio
 let audioCtx = null;
-
-// Elemento Video Fallback per Safari iOS
 let fallbackVideoEl = null;
 
-// VERIFICA SE UNA STRINGA SI RIFERISCE AL DISLIVELLO
+// VERIFICA DISLIVELLO
 function isDislivelloText(text) {
   if (!text) return false;
   const clean = text.toLowerCase().trim();
@@ -33,17 +31,15 @@ function isDislivelloText(text) {
   return dislivelloRegex.test(clean);
 }
 
-// SINTETIZZATORE SUONO DI AVVISO (Bip al raggiungimento dello 0)
+// BEEP ACUSTICO ZERO
 function playAlertBeep() {
   try {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
-
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
@@ -60,7 +56,7 @@ function playAlertBeep() {
     osc.start(audioCtx.currentTime);
     osc.stop(audioCtx.currentTime + 0.35);
   } catch (e) {
-    console.warn("Impossibile riprodurre il segnale acustico:", e);
+    console.warn("Audio non supportato:", e);
   }
 }
 
@@ -71,7 +67,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// INIZIALIZZA DASHBOARD
 function initDashboard() {
   const storedRoute = sessionStorage.getItem("roadbook_route");
   const storedPdfData = sessionStorage.getItem("roadbook_pdf_data");
@@ -82,7 +77,6 @@ function initDashboard() {
   }
 
   route = JSON.parse(storedRoute);
-  
   initMap();
 
   if (storedPdfData) {
@@ -99,7 +93,6 @@ function initDashboard() {
     startGPS();
   }
 
-  // Sblocco interazione utente per audio e wake lock su iOS Safari
   document.addEventListener("touchstart", handleUserInteraction, { once: true });
   document.addEventListener("click", handleUserInteraction, { once: true });
 }
@@ -111,32 +104,19 @@ function handleUserInteraction() {
   }
 }
 
-// INIZIALIZZA MAPPA (Leaflet / OpenStreetMap)
+// MAPPA
 function initMap() {
   const mapEl = document.getElementById("map");
   if (!mapEl) return;
 
-  map = L.map('map', {
-    zoomControl: false,
-    attributionControl: false
-  }).setView([41.9028, 12.4964], 13);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
-  }).addTo(map);
+  map = L.map('map', { zoomControl: false, attributionControl: false }).setView([41.9028, 12.4964], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 }
 
-// AGGIORNA POSIZIONE MAPPA
 function updateMapPosition(lat, lng) {
   if (!map) return;
-
   if (!userMarker) {
-    userMarker = L.circleMarker([lat, lng], {
-      color: '#00e676',
-      fillColor: '#00e676',
-      fillOpacity: 0.8,
-      radius: 8
-    }).addTo(map);
+    userMarker = L.circleMarker([lat, lng], { color: '#00e676', fillColor: '#00e676', fillOpacity: 0.8, radius: 8 }).addTo(map);
     map.setView([lat, lng], 16);
   } else {
     userMarker.setLatLng([lat, lng]);
@@ -144,7 +124,9 @@ function updateMapPosition(lat, lng) {
   }
 }
 
-// CARICAMENTO UNIVERSELE CON CONTROLLO ESCLUSIVO METRI PARZIALI
+// ---------------------------------------------------------
+// OPTION 1: LOAD ROADBOOK (PDF / IMMAGINI JPG, PNG, HEIC)
+// ---------------------------------------------------------
 async function loadRoadbook(event) {
   let file = event.target.files[0];
   if (!file) return;
@@ -152,17 +134,10 @@ async function loadRoadbook(event) {
   const statusEl = document.getElementById("upload-status");
   const fileName = file.name.toLowerCase();
 
-  // 1. Conversione HEIC iPhone
   if (fileName.endsWith(".heic") || file.type === "image/heic") {
     if (statusEl) statusEl.innerText = "Conversione formato HEIC iPhone in corso...";
-
     try {
-      const convertedBlob = await heic2any({
-        blob: file,
-        toType: "image/jpeg",
-        quality: 0.8
-      });
-
+      const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
       const resultBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
       file = new File([resultBlob], "converted.jpg", { type: "image/jpeg" });
     } catch (error) {
@@ -171,14 +146,11 @@ async function loadRoadbook(event) {
     }
   }
 
-  // 2. Elaborazione ed Estrazione Dati da IMMAGINI (OCR Tesseract)
   if (file.type.startsWith("image/")) {
     if (statusEl) statusEl.innerText = "Analisi OCR Immagine in corso...";
-
     const reader = new FileReader();
     reader.onload = async function(e) {
       const imageDataUrl = e.target.result;
-
       try {
         const worker = await Tesseract.createWorker('ita');
         const ret = await worker.recognize(imageDataUrl);
@@ -192,7 +164,6 @@ async function loadRoadbook(event) {
 
         lines.forEach(line => {
           if (isDislivelloText(line)) return;
-
           const numMatches = line.match(/\b\d+([.,]\d+)?\b/g);
           if (numMatches) {
             numMatches.forEach(m => {
@@ -202,58 +173,37 @@ async function loadRoadbook(event) {
           }
         });
 
-        let parzialeMetri = 0.0;
-        let totaleMetri = 0.0;
-
-        if (validDistances.length >= 2) {
-          parzialeMetri = Math.min(...validDistances);
-          totaleMetri = Math.max(...validDistances);
-        } else if (validDistances.length === 1) {
-          parzialeMetri = validDistances[0];
-          totaleMetri = validDistances[0];
-        }
-
+        let parzialeMetri = validDistances.length >= 2 ? Math.min(...validDistances) : (validDistances[0] || 0);
+        let totaleMetri = validDistances.length >= 2 ? Math.max(...validDistances) : (validDistances[0] || 0);
         let noteText = lines.find(l => /[a-zA-Z]{3,}/.test(l) && !isDislivelloText(l)) || "INSERISCI DIREZIONE";
 
         extractedStages.push({
-          nota: 1,
-          text: noteText,
-          parziale: parzialeMetri,
-          totale: totaleMetri,
-          isImage: true,
-          imageData: imageDataUrl
+          nota: 1, text: noteText, parziale: parzialeMetri, totale: totaleMetri, isImage: true, imageData: imageDataUrl
         });
 
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.removeItem("roadbook_pdf_data");
-
         window.location.href = "src/dashboard.html";
       } catch (err) {
-        if (statusEl) statusEl.innerText = "Errore durante l'analisi OCR dell'immagine.";
+        if (statusEl) statusEl.innerText = "Errore durante l'analisi dell'immagine.";
       }
     };
     reader.readAsDataURL(file);
     return;
   }
 
-  // 3. Elaborazione ed Estrazione Dati da PDF
   if (file.type === "application/pdf") {
     loadPDF(file);
-  } else {
-    if (statusEl) statusEl.innerText = "Formato non supportato. Usa PDF, JPG, PNG o HEIC.";
   }
 }
 
-// PARSING E RILEVAMENTO TAPPE DA PDF
 async function loadPDF(file) {
   const statusEl = document.getElementById("upload-status");
   if (statusEl) statusEl.innerText = "Analisi Roadbook PDF in corso...";
 
   const fileReader = new FileReader();
   fileReader.onload = async function() {
-    const arrayBuffer = this.result;
-    const typedarray = new Uint8Array(arrayBuffer);
-    
+    const typedarray = new Uint8Array(this.result);
     try {
       pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
       let allItems = [];
@@ -262,25 +212,16 @@ async function loadPDF(file) {
       for (let i = 1; i <= pdfDoc.numPages; i++) {
         const page = await pdfDoc.getPage(i);
         const textContent = await page.getTextContent();
-        
         textContent.items.forEach(item => {
           const str = item.str.trim();
-          if (str.length > 0) {
-            allItems.push({ 
-              text: str, 
-              page: i,
-              transform: item.transform
-            });
-          }
+          if (str.length > 0) allItems.push({ text: str, page: i, transform: item.transform });
         });
       }
 
       for (let i = 0; i < allItems.length; i++) {
         let entry = allItems[i];
-        
         if (/^\d{1,3}$/.test(entry.text)) {
           let notaNum = parseInt(entry.text);
-
           if (notaNum > 0 && notaNum < 200) {
             let noteText = "SEGUI STRADA";
             let distanceValues = [];
@@ -288,40 +229,16 @@ async function loadPDF(file) {
 
             for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
               let contextItem = allItems[j].text;
-              
-              if (isDislivelloText(contextItem)) {
-                continue;
-              }
-
-              if (/[A-Z]{3,}/.test(contextItem) && !contextItem.includes("AUTOSTRADA") && !contextItem.includes("DISTANZE")) {
-                noteText = contextItem;
-              }
-              
-              if (/^\d{1,2}[.,]\d{2,3}$/.test(contextItem)) {
-                distanceValues.push(parseFloat(contextItem.replace(',', '.')));
-              }
+              if (isDislivelloText(contextItem)) continue;
+              if (/[A-Z]{3,}/.test(contextItem) && !contextItem.includes("AUTOSTRADA")) noteText = contextItem;
+              if (/^\d{1,2}[.,]\d{2,3}$/.test(contextItem)) distanceValues.push(parseFloat(contextItem.replace(',', '.')));
             }
 
             if (!extractedStages.some(s => s.nota === notaNum)) {
-              let parziale = 0.0;
-              let totale = 0.0;
+              let parziale = distanceValues.length >= 2 ? Math.min(...distanceValues) : (distanceValues[0] || 0);
+              let totale = distanceValues.length >= 2 ? Math.max(...distanceValues) : (distanceValues[0] || 0);
 
-              if (distanceValues.length >= 2) {
-                parziale = Math.min(...distanceValues);
-                totale = Math.max(...distanceValues);
-              } else if (distanceValues.length === 1) {
-                parziale = distanceValues[0];
-                totale = distanceValues[0];
-              }
-
-              extractedStages.push({
-                nota: notaNum,
-                text: noteText,
-                parziale: parziale,
-                totale: totale,
-                page: entry.page,
-                yPos: yPosition
-              });
+              extractedStages.push({ nota: notaNum, text: noteText, parziale: parziale, totale: totale, page: entry.page, yPos: yPosition });
             }
           }
         }
@@ -329,20 +246,80 @@ async function loadPDF(file) {
 
       if (extractedStages.length > 0) {
         extractedStages.sort((a, b) => a.nota - b.nota);
-        
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.setItem("roadbook_pdf_data", JSON.stringify(Array.from(typedarray)));
-        
         window.location.href = "src/dashboard.html";
       } else {
-        if (statusEl) statusEl.innerText = "Nessuna nota riconosciuta nel PDF.";
+        if (statusEl) statusEl.innerText = "Nessuna nota trovata nel PDF.";
       }
     } catch (err) {
-      if (statusEl) statusEl.innerText = "Errore lettura PDF: " + err.message;
+      if (statusEl) statusEl.innerText = "Errore lettura PDF.";
     }
   };
-
   fileReader.readAsArrayBuffer(file);
+}
+
+// ---------------------------------------------------------
+// OPTION 2: LOAD TRACCIA GPS (GPX DA OSMAND / WIKILOC)
+// ---------------------------------------------------------
+function loadGPXFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById("upload-status");
+  if (statusEl) statusEl.innerText = "Elaborazione Traccia GPX in corso...";
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(text, "text/xml");
+
+    let extractedStages = [];
+    let cumulativeDist = 0.0;
+    let lastPt = null;
+
+    const waypoints = xmlDoc.querySelectorAll("wpt");
+
+    if (waypoints.length > 0) {
+      waypoints.forEach((wpt, index) => {
+        const lat = parseFloat(wpt.getAttribute("lat"));
+        const lon = parseFloat(wpt.getAttribute("lon"));
+        const nameEl = wpt.querySelector("name") || wpt.querySelector("cmt") || wpt.querySelector("desc");
+        const symEl = wpt.querySelector("sym") || wpt.querySelector("type");
+
+        let noteText = nameEl ? nameEl.textContent : `Svolta ${index + 1}`;
+        let symType = symEl ? symEl.textContent.toLowerCase() : "turn";
+
+        let segmentDist = 0.0;
+        if (lastPt) {
+          segmentDist = calculateDistance(lastPt.lat, lastPt.lon, lat, lon);
+        }
+        cumulativeDist += segmentDist;
+        lastPt = { lat, lon };
+
+        extractedStages.push({
+          nota: index + 1,
+          text: noteText,
+          parziale: segmentDist,
+          totale: cumulativeDist,
+          isGpxIcon: true,
+          iconType: symType,
+          lat: lat,
+          lon: lon
+        });
+      });
+    }
+
+    if (extractedStages.length > 0) {
+      sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
+      sessionStorage.removeItem("roadbook_pdf_data");
+      window.location.href = "src/dashboard.html";
+    } else {
+      if (statusEl) statusEl.innerText = "Nessun waypoint di navigazione presente nel GPX.";
+    }
+  };
+  reader.readAsText(file);
 }
 
 function clearPDF() {
@@ -351,47 +328,26 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// ESTRAZIONE DINAMICA DELLA FRECCIA DA IMMAGINE
-async function extractDirectionFromImage(imageDataUrl) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      // Ritaglio focalizzato sulla colonna centrale dell'immagine
-      const cropX = img.width * 0.35;
-      const cropWidth = img.width * 0.25;
-      const cropY = img.height * 0.10;
-      const cropHeight = img.height * 0.80;
-
-      const cropCanvas = document.createElement("canvas");
-      const cropCtx = cropCanvas.getContext("2d");
-      cropCanvas.width = cropWidth;
-      cropCanvas.height = cropHeight;
-
-      cropCtx.drawImage(
-        canvas,
-        cropX, cropY, cropWidth, cropHeight,
-        0, 0, cropWidth, cropHeight
-      );
-
-      resolve(cropCanvas.toDataURL());
-    };
-    img.src = imageDataUrl;
-  });
-}
-
-// RENDER ADATTIVO ED ISOLATO DELLA FRECCIA DI DIREZIONE (PDF & IMMAGINI)
+// CROP DINAMICO FRECCIA O RENDER SVG GPX
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
   box.innerHTML = "";
 
-  // 1. Gestione per file caricati come IMMAGINE
+  // 1. FRECCIA SVG DA GPX
+  if (stage.isGpxIcon) {
+    let iconSvg = "⬆️";
+    const type = stage.iconType || "";
+    if (type.includes("left") || type.includes("sinistra")) iconSvg = "⬅️";
+    else if (type.includes("right") || type.includes("destra")) iconSvg = "➡️";
+    else if (type.includes("sharp_left")) iconSvg = "↖️";
+    else if (type.includes("sharp_right")) iconSvg = "↗️";
+
+    box.innerHTML = `<div style="font-size: 3.5rem; display: flex; align-items: center; justify-content: center; height: 100%;">${iconSvg}</div>`;
+    return;
+  }
+
+  // 2. FRECCIA CROP DA IMMAGINE
   if (stage.isImage && stage.imageData) {
     try {
       const croppedImageBase64 = await extractDirectionFromImage(stage.imageData);
@@ -412,7 +368,7 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 2. Gestione DINAMICA per file PDF
+  // 3. FRECCIA CROP DINAMICO DA PDF
   try {
     const page = await pdfDoc.getPage(stage.page);
     const scale = 3.0;
@@ -425,7 +381,6 @@ async function renderStageGraphic(stage) {
     let minX_AfterText = viewport.width;
     let maxX_BeforeText = 0;
 
-    // Calcolo dinamico dello spazio libero tra le colonne di testo
     pageItems.forEach(item => {
       const itemY = item.transform[5];
       const itemX = item.transform[4] * scale;
@@ -433,13 +388,9 @@ async function renderStageGraphic(stage) {
 
       if (Math.abs(itemY - stageY) < 25) {
         if (itemX < viewport.width * 0.5) {
-          if ((itemX + itemWidth) > maxX_BeforeText) {
-            maxX_BeforeText = itemX + itemWidth;
-          }
+          if ((itemX + itemWidth) > maxX_BeforeText) maxX_BeforeText = itemX + itemWidth;
         } else {
-          if (itemX < minX_AfterText) {
-            minX_AfterText = itemX;
-          }
+          if (itemX < minX_AfterText) minX_AfterText = itemX;
         }
       }
     });
@@ -451,34 +402,19 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
-    let cropX, cropWidth;
-
-    if (maxX_BeforeText > 0 && minX_AfterText < viewport.width && minX_AfterText > maxX_BeforeText) {
-      cropX = maxX_BeforeText + 10;
-      cropWidth = (minX_AfterText - maxX_BeforeText) - 20;
-    } else {
-      cropX = viewport.width * 0.42;
-      cropWidth = viewport.width * 0.18;
-    }
+    let cropX = (maxX_BeforeText > 0 && minX_AfterText > maxX_BeforeText) ? maxX_BeforeText + 10 : viewport.width * 0.42;
+    let cropWidth = (maxX_BeforeText > 0 && minX_AfterText > maxX_BeforeText) ? (minX_AfterText - maxX_BeforeText) - 20 : viewport.width * 0.18;
 
     const rowHeight = viewport.height / 12; 
     let cropY = (viewport.height - (stageY * scale)) - (rowHeight * 0.4);
     if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
 
-    cropWidth = Math.max(cropWidth, 50);
-
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
-
-    cropCanvas.width = cropWidth;
+    cropCanvas.width = Math.max(cropWidth, 50);
     cropCanvas.height = rowHeight;
 
-    cropCtx.drawImage(
-      fullCanvas,
-      cropX, cropY, cropWidth, rowHeight,
-      0, 0, cropWidth, rowHeight
-    );
-
+    cropCtx.drawImage(fullCanvas, cropX, cropY, cropWidth, rowHeight, 0, 0, cropWidth, rowHeight);
     cropCanvas.style.maxWidth = "100%";
     cropCanvas.style.maxHeight = "100%";
     cropCanvas.style.objectFit = "contain";
@@ -489,7 +425,34 @@ async function renderStageGraphic(stage) {
   }
 }
 
-// AGGIORNA VISUALIZZAZIONE NOTA NELLA DASHBOARD
+async function extractDirectionFromImage(imageDataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const cropX = img.width * 0.35;
+      const cropWidth = img.width * 0.25;
+      const cropY = img.height * 0.10;
+      const cropHeight = img.height * 0.80;
+
+      const cropCanvas = document.createElement("canvas");
+      const cropCtx = cropCanvas.getContext("2d");
+      cropCanvas.width = cropWidth;
+      cropCanvas.height = cropHeight;
+
+      cropCtx.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      resolve(cropCanvas.toDataURL());
+    };
+    img.src = imageDataUrl;
+  });
+}
+
+// DASHBOARD E AVANZAMENTO
 function updateStageDisplay() {
   if (route.length === 0) return;
 
@@ -513,7 +476,6 @@ function updateStageDisplay() {
   updateDisplays();
 }
 
-// AGGIORNA CONTATORI E AVANZAMENTO AUTOMATICO CON AVVISO SONORO
 function updateDisplays() {
   if (route.length === 0) return;
 
@@ -522,17 +484,12 @@ function updateDisplays() {
 
   if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
     isAutoAdvancing = true;
-    
     playAlertBeep();
 
     if (currentStageIndex < route.length - 1) {
       currentStageIndex++;
       tripKmTraveled = 0.0;
-      
-      setTimeout(() => {
-        updateStageDisplay();
-        isAutoAdvancing = false;
-      }, 500);
+      setTimeout(() => { updateStageDisplay(); isAutoAdvancing = false; }, 500);
       return;
     } else {
       remainingTrip = 0;
@@ -540,28 +497,19 @@ function updateDisplays() {
   }
 
   if (remainingTrip < 0) remainingTrip = 0;
-
-  const countdownEl = document.getElementById("trip-countdown");
-  const totalEl = document.getElementById("total-traveled");
-
-  if (countdownEl) countdownEl.innerText = remainingTrip.toFixed(2);
-  if (totalEl) totalEl.innerText = totalKmTraveled.toFixed(2);
+  document.getElementById("trip-countdown").innerText = remainingTrip.toFixed(2);
+  document.getElementById("total-traveled").innerText = totalKmTraveled.toFixed(2);
 }
 
-// DISTANZA GPS
+// GPS & DISTANZE
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// POSIZIONE GPS
 function handlePosition(position) {
   const { latitude, longitude, accuracy } = position.coords;
 
@@ -586,33 +534,22 @@ function handlePosition(position) {
   }
 }
 
-// GESTIONE SCHERMO ATTIVO (NATIVE WAKE LOCK + SAFARI FALLBACK)
+// WAKE LOCK & SAFARI FALLBACK
 async function requestWakeLock() {
   const lockEl = document.getElementById("wakelock-text");
-
   if ('wakeLock' in navigator) {
     try {
       if (!wakeLock) {
         wakeLock = await navigator.wakeLock.request('screen');
-        if (lockEl) {
-          lockEl.innerText = "Schermo: Attivo 💡";
-          lockEl.style.color = "#00e676";
-        }
-
-        wakeLock.addEventListener('release', () => {
-          wakeLock = null;
-        });
+        if (lockEl) { lockEl.innerText = "Schermo: Attivo 💡"; lockEl.style.color = "#00e676"; }
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
       }
       return;
-    } catch (err) {
-      console.warn("Wake Lock nativo rifiutato, attivo fallback per Safari iOS...", err);
-    }
+    } catch (err) {}
   }
-
   startSafariVideoFallback(lockEl);
 }
 
-// FALLBACK SAFARI iOS: Video Trasparente in Loop
 function startSafariVideoFallback(lockEl) {
   if (!fallbackVideoEl) {
     fallbackVideoEl = document.createElement("video");
@@ -623,42 +560,21 @@ function startSafariVideoFallback(lockEl) {
     fallbackVideoEl.style.width = "1px";
     fallbackVideoEl.style.height = "1px";
     fallbackVideoEl.style.opacity = "0.01";
-    fallbackVideoEl.style.pointerEvents = "none";
-    
     fallbackVideoEl.src = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAAAAG1kYXQ=";
     document.body.appendChild(fallbackVideoEl);
   }
-
   fallbackVideoEl.play().then(() => {
-    if (lockEl) {
-      lockEl.innerText = "Schermo: Attivo (iOS) 💡";
-      lockEl.style.color = "#00e676";
-    }
-  }).catch(() => {
-    if (lockEl) {
-      lockEl.innerText = "Schermo: Tocca lo schermo ⚠️";
-      lockEl.style.color = "#ffb300";
-    }
+    if (lockEl) { lockEl.innerText = "Schermo: Attivo (iOS) 💡"; lockEl.style.color = "#00e676"; }
   });
 }
 
-// RIPRISTINO AUTOMATICO SCHERMO ATTIVO SU SAFARI QUANDO L'APP TORNA IN PRIMO PIANO
 document.addEventListener("visibilitychange", async () => {
-  if (document.visibilityState === "visible") {
-    await requestWakeLock();
-  }
+  if (document.visibilityState === "visible") await requestWakeLock();
 });
 
 function startGPS() {
   if ("geolocation" in navigator && !watchId) {
-    watchId = navigator.geolocation.watchPosition(handlePosition, (err) => {
-      const gpsEl = document.getElementById("status-text");
-      if (gpsEl) gpsEl.innerText = "Errore GPS: " + err.message;
-    }, {
-      enableHighAccuracy: true,
-      maximumAge: 1000,
-      timeout: 10000
-    });
+    watchId = navigator.geolocation.watchPosition(handlePosition, null, { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 });
     requestWakeLock();
   }
 }
