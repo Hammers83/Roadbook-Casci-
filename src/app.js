@@ -99,7 +99,7 @@ function initDashboard() {
     startGPS();
   }
 
-  // Forza l'attivazione del Wake Lock al primo tocco dell'utente su Safari iOS
+  // Sblocco interazione utente per audio e wake lock su iOS Safari
   document.addEventListener("touchstart", handleUserInteraction, { once: true });
   document.addEventListener("click", handleUserInteraction, { once: true });
 }
@@ -244,7 +244,7 @@ async function loadRoadbook(event) {
   }
 }
 
-// PARSING E RILEVAMENTO TAPPE DA PDF (CON FILTRO FERREO ANTI-DISLIVELLO)
+// PARSING E RILEVAMENTO TAPPE DA PDF
 async function loadPDF(file) {
   const statusEl = document.getElementById("upload-status");
   if (statusEl) statusEl.innerText = "Analisi Roadbook PDF in corso...";
@@ -351,19 +351,59 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDER RITAGLIO ISOLATO E PRECISO DELLA FRECCIA DI DIREZIONE (TULIP)
+// ESTRAZIONE DINAMICA DELLA FRECCIA DA IMMAGINE
+async function extractDirectionFromImage(imageDataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Ritaglio focalizzato sulla colonna centrale dell'immagine
+      const cropX = img.width * 0.35;
+      const cropWidth = img.width * 0.25;
+      const cropY = img.height * 0.10;
+      const cropHeight = img.height * 0.80;
+
+      const cropCanvas = document.createElement("canvas");
+      const cropCtx = cropCanvas.getContext("2d");
+      cropCanvas.width = cropWidth;
+      cropCanvas.height = cropHeight;
+
+      cropCtx.drawImage(
+        canvas,
+        cropX, cropY, cropWidth, cropHeight,
+        0, 0, cropWidth, cropHeight
+      );
+
+      resolve(cropCanvas.toDataURL());
+    };
+    img.src = imageDataUrl;
+  });
+}
+
+// RENDER ADATTIVO ED ISOLATO DELLA FRECCIA DI DIREZIONE (PDF & IMMAGINI)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
   box.innerHTML = "";
 
+  // 1. Gestione per file caricati come IMMAGINE
   if (stage.isImage && stage.imageData) {
-    const img = document.createElement("img");
-    img.src = stage.imageData;
-    img.style.maxWidth = "100%";
-    img.style.maxHeight = "100%";
-    img.style.objectFit = "contain";
-    box.appendChild(img);
+    try {
+      const croppedImageBase64 = await extractDirectionFromImage(stage.imageData);
+      const img = document.createElement("img");
+      img.src = croppedImageBase64;
+      img.style.maxWidth = "100%";
+      img.style.maxHeight = "100%";
+      img.style.objectFit = "contain";
+      box.appendChild(img);
+    } catch (e) {
+      box.innerHTML = `<span style="font-size:2rem;">📍</span>`;
+    }
     return;
   }
 
@@ -372,11 +412,38 @@ async function renderStageGraphic(stage) {
     return;
   }
 
+  // 2. Gestione DINAMICA per file PDF
   try {
     const page = await pdfDoc.getPage(stage.page);
     const scale = 3.0;
     const viewport = page.getViewport({ scale: scale });
-    
+
+    const textContent = await page.getTextContent();
+    const pageItems = textContent.items;
+
+    let stageY = stage.yPos;
+    let minX_AfterText = viewport.width;
+    let maxX_BeforeText = 0;
+
+    // Calcolo dinamico dello spazio libero tra le colonne di testo
+    pageItems.forEach(item => {
+      const itemY = item.transform[5];
+      const itemX = item.transform[4] * scale;
+      const itemWidth = (item.width || 0) * scale;
+
+      if (Math.abs(itemY - stageY) < 25) {
+        if (itemX < viewport.width * 0.5) {
+          if ((itemX + itemWidth) > maxX_BeforeText) {
+            maxX_BeforeText = itemX + itemWidth;
+          }
+        } else {
+          if (itemX < minX_AfterText) {
+            minX_AfterText = itemX;
+          }
+        }
+      }
+    });
+
     const fullCanvas = document.createElement("canvas");
     const fullCtx = fullCanvas.getContext("2d");
     fullCanvas.width = viewport.width;
@@ -384,29 +451,37 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
+    let cropX, cropWidth;
+
+    if (maxX_BeforeText > 0 && minX_AfterText < viewport.width && minX_AfterText > maxX_BeforeText) {
+      cropX = maxX_BeforeText + 10;
+      cropWidth = (minX_AfterText - maxX_BeforeText) - 20;
+    } else {
+      cropX = viewport.width * 0.42;
+      cropWidth = viewport.width * 0.18;
+    }
+
+    const rowHeight = viewport.height / 12; 
+    let cropY = (viewport.height - (stageY * scale)) - (rowHeight * 0.4);
+    if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
+
+    cropWidth = Math.max(cropWidth, 50);
+
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
 
-    const cropX = viewport.width * 0.35; 
-    const cropWidth = viewport.width * 0.30;
-    const stageHeight = viewport.height / 9.5;
-    
-    let cropY = (viewport.height - (stage.yPos * scale)) - (stageHeight / 2);
-    if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
-
     cropCanvas.width = cropWidth;
-    cropCanvas.height = stageHeight;
+    cropCanvas.height = rowHeight;
 
     cropCtx.drawImage(
       fullCanvas,
-      cropX, cropY, cropWidth, stageHeight,
-      0, 0, cropWidth, stageHeight
+      cropX, cropY, cropWidth, rowHeight,
+      0, 0, cropWidth, rowHeight
     );
 
     cropCanvas.style.maxWidth = "100%";
     cropCanvas.style.maxHeight = "100%";
     cropCanvas.style.objectFit = "contain";
-    cropCanvas.style.borderRadius = "8px";
 
     box.appendChild(cropCanvas);
   } catch (e) {
@@ -511,11 +586,10 @@ function handlePosition(position) {
   }
 }
 
-// GESTIONE AVANZATA SCHERMO ATTIVO (NATIVE WAKE LOCK + SAFARI FALLBACK)
+// GESTIONE SCHERMO ATTIVO (NATIVE WAKE LOCK + SAFARI FALLBACK)
 async function requestWakeLock() {
   const lockEl = document.getElementById("wakelock-text");
 
-  // Metodo 1: Screen Wake Lock API Standard
   if ('wakeLock' in navigator) {
     try {
       if (!wakeLock) {
@@ -531,15 +605,14 @@ async function requestWakeLock() {
       }
       return;
     } catch (err) {
-      console.warn("Wake Lock nativo rifiutato, attivo il fallback per Safari iOS...", err);
+      console.warn("Wake Lock nativo rifiutato, attivo fallback per Safari iOS...", err);
     }
   }
 
-  // Metodo 2: Fallback Video per Safari su iOS
   startSafariVideoFallback(lockEl);
 }
 
-// FALLBACK SAFARI iOS: Video Trasparente in Loop per Impedire il Blocco Schermo
+// FALLBACK SAFARI iOS: Video Trasparente in Loop
 function startSafariVideoFallback(lockEl) {
   if (!fallbackVideoEl) {
     fallbackVideoEl = document.createElement("video");
@@ -552,7 +625,6 @@ function startSafariVideoFallback(lockEl) {
     fallbackVideoEl.style.opacity = "0.01";
     fallbackVideoEl.style.pointerEvents = "none";
     
-    // Video ultra-leggero H264 trasparente in base64
     fallbackVideoEl.src = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAAAAG1kYXQ=";
     document.body.appendChild(fallbackVideoEl);
   }
@@ -570,7 +642,7 @@ function startSafariVideoFallback(lockEl) {
   });
 }
 
-// RIPRISTINA AUTOMATICAMENTE IL BLOCCO SCHERMO QUANDO L'UTENTE TORNA NELL'APP SAFARI
+// RIPRISTINO AUTOMATICO SCHERMO ATTIVO SU SAFARI QUANDO L'APP TORNA IN PRIMO PIANO
 document.addEventListener("visibilitychange", async () => {
   if (document.visibilityState === "visible") {
     await requestWakeLock();
