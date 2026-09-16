@@ -136,7 +136,7 @@ function initMap() {
   }
 }
 
-function updateMapPosition(lat, lng) {
+/*function updateMapPosition(lat, lng) {
   if (!map) return;
 
   if (!userMarker) {
@@ -153,6 +153,43 @@ function updateMapPosition(lat, lng) {
     }
   } else {
     userMarker.setLatLng([lat, lng]);
+  }
+}*/
+// Variabile globale per memorizzare le ultime coordinate GPS ricevute
+let currentCoords = null;
+
+function updateMapPosition(lat, lng) {
+  if (!map) return;
+
+  // Salva le coordinate correnti
+  currentCoords = { lat, lng };
+
+  if (!userMarker) {
+    userMarker = L.circleMarker([lat, lng], {
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#00e676',
+      fillOpacity: 1,
+      radius: 9
+    }).addTo(map);
+    
+    if (!trackPolyline) {
+      map.setView([lat, lng], 16);
+    }
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
+}
+
+// FUNZIONE PER RICENTRARE LA MAPPA SULLA POSIZIONE ATTUALE
+function recenterMap() {
+  if (!map) return;
+
+  if (currentCoords) {
+    // Centra la mappa sulla posizione del GPS mantenendo lo zoom
+    map.flyTo([currentCoords.lat, currentCoords.lng], 16, { animate: true, duration: 0.8 });
+  } else {
+    alert("In attesa del segnale GPS...");
   }
 }
 
