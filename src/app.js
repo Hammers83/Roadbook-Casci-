@@ -19,6 +19,42 @@ let isAutoAdvancing = false;
 let map = null;
 let userMarker = null;
 
+// Context Web Audio per il suono di avviso
+let audioCtx = null;
+
+// SINTETIZZATORE SUONO DI AVVISO (Bip al raggiungimento dello 0)
+function playAlertBeep() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    // Crea un oscillatore per generare un suono nitido
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine"; // Onda sinusoidale
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Frequenza 880 Hz (Nota La/A5)
+    
+    // Inviluppo del volume (fade in breve e sfumatura rapida)
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.8, audioCtx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.35);
+  } catch (e) {
+    console.warn("Impossibile riprodurre il segnale acustico:", e);
+  }
+}
+
 // INIZIALIZZAZIONE
 document.addEventListener("DOMContentLoaded", () => {
   if (document.body.classList.contains("page-dashboard")) {
@@ -50,7 +86,6 @@ function initDashboard() {
       window.location.href = "../index.html";
     });
   } else {
-    // Se è un'immagine diretta
     updateStageDisplay();
     startGPS();
   }
@@ -328,16 +363,20 @@ function updateStageDisplay() {
   updateDisplays();
 }
 
-// AGGIORNA CONTATORI E AVANZAMENTO AUTOMATICO
+// AGGIORNA CONTATORI E AVANZAMENTO AUTOMATICO CON AVVISO SONORO
 function updateDisplays() {
   if (route.length === 0) return;
 
   const current = route[currentStageIndex];
   let remainingTrip = current.parziale - tripKmTraveled;
 
+  // CONTROLLO PARZIALE = 0 CON SUONO
   if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
     isAutoAdvancing = true;
     
+    // Riproduce il bip acustico prima di cambiare nota
+    playAlertBeep();
+
     if (currentStageIndex < route.length - 1) {
       currentStageIndex++;
       tripKmTraveled = 0.0;
