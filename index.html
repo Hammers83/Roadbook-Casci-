@@ -11,8 +11,10 @@
   <title>ROADBOOK READER - Select File</title>
   
   <link rel="stylesheet" href="src/style.css">
-  <!-- Librerie PDF.js e HEIC Conversion per iPhone -->
+  
+  <!-- Librerie: HEIC iPhone, Tesseract OCR per Immagini e PDF.js -->
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
 <body class="page-landing">
@@ -27,11 +29,11 @@
       <span class="title-bottom">READER</span>
     </h1>
     
-    <p class="subtitle">Carica il file (PDF, PNG, JPG, HEIC) per iniziare il viaggio</p>
+    <p class="subtitle">Carica PDF o Immagine (PNG, JPG, HEIC) per estrarre tappe, metri parziali/totali, direzione e note.</p>
 
     <div class="upload-area">
       <label for="pdf-file-input" class="btn-offroad-primary">
-        <span class="btn-icon">📂</span> CARICA FILE ROADBOOK
+        <span class="btn-icon">📂</span> CARICA ROADBOOK
       </label>
       <input type="file" id="pdf-file-input" accept="application/pdf, image/png, image/jpeg, image/jpg, image/heic, .heic" onchange="loadRoadbook(event)">
       
