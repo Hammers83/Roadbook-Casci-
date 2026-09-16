@@ -15,10 +15,13 @@ let watchId = null;
 let wakeLock = null;
 let isAutoAdvancing = false;
 
-// Variabili Mappa
+// Gestione Mappe: Traccia prevista (Arancione) e Traccia effettuata (Azzurra)
 let map = null;
 let userMarker = null;
-let trackPolyline = null;
+let plannedPolyline = null; // Traccia GPX completa
+let livePolyline = null;    // Traccia percorsa in tempo reale
+let livePathCoords = [];    // Coordinate registrate dal GPS
+let currentCoords = null;
 
 // Context Web Audio
 let audioCtx = null;
@@ -105,7 +108,7 @@ function handleUserInteraction() {
   }
 }
 
-/*// ---------------------------------------------------------
+// ---------------------------------------------------------
 // MAPPA & TRACKING IN TEMPO REALE
 // ---------------------------------------------------------
 function initMap() {
@@ -115,120 +118,31 @@ function initMap() {
   map = L.map('map', { zoomControl: false, attributionControl: false }).setView([41.9028, 12.4964], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-  // Recupera e disegna il percorso salvato dal GPX sulla mappa
+  // 1. Disegna la traccia GPX completa se presente (Sfondo Arancione)
   const storedPath = sessionStorage.getItem("roadbook_gpx_path");
   if (storedPath) {
     try {
       const gpxCoords = JSON.parse(storedPath);
       if (gpxCoords.length > 0) {
-        trackPolyline = L.polyline(gpxCoords, {
+        plannedPolyline = L.polyline(gpxCoords, {
           color: '#ff9800',
-          weight: 5,
-          opacity: 0.85,
+          weight: 6,
+          opacity: 0.7,
           lineJoin: 'round'
         }).addTo(map);
 
-        map.fitBounds(trackPolyline.getBounds(), { padding: [20, 20] });
-      }
-    } catch (e) {
-      console.warn("Errore nel caricamento del percorso GPX sulla mappa", e);
-    }
-  }
-}
-
-function updateMapPosition(lat, lng) {
-  if (!map) return;
-
-  if (!userMarker) {
-    userMarker = L.circleMarker([lat, lng], {
-      color: '#ffffff',
-      weight: 2,
-      fillColor: '#00e676',
-      fillOpacity: 1,
-      radius: 9
-    }).addTo(map);
-    
-    if (!trackPolyline) {
-      map.setView([lat, lng], 16);
-    }
-  } else {
-    userMarker.setLatLng([lat, lng]);
-  }
-}
-// Variabile globale per memorizzare le ultime coordinate GPS ricevute
-let currentCoords = null;
-
-function updateMapPosition(lat, lng) {
-  if (!map) return;
-
-  // Salva le coordinate correnti
-  currentCoords = { lat, lng };
-
-  if (!userMarker) {
-    userMarker = L.circleMarker([lat, lng], {
-      color: '#ffffff',
-      weight: 2,
-      fillColor: '#00e676',
-      fillOpacity: 1,
-      radius: 9
-    }).addTo(map);
-    
-    if (!trackPolyline) {
-      map.setView([lat, lng], 16);
-    }
-  } else {
-    userMarker.setLatLng([lat, lng]);
-  }
-}
-
-// FUNZIONE PER RICENTRARE LA MAPPA SULLA POSIZIONE ATTUALE
-function recenterMap() {
-  if (!map) return;
-
-  if (currentCoords) {
-    // Centra la mappa sulla posizione del GPS mantenendo lo zoom
-    map.flyTo([currentCoords.lat, currentCoords.lng], 16, { animate: true, duration: 0.8 });
-  } else {
-    alert("In attesa del segnale GPS...");
-  }
-}*/
-
-// Memorizza lo storico delle coordinate per tracciare il percorso su PDF/Immagini
-let livePathCoords = [];
-
-function initMap() {
-  const mapEl = document.getElementById("map");
-  if (!mapEl) return;
-
-  map = L.map('map', { zoomControl: false, attributionControl: false }).setView([41.9028, 12.4964], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-  // 1. CASO GPX: Recupera il percorso precaricato
-  const storedPath = sessionStorage.getItem("roadbook_gpx_path");
-  if (storedPath) {
-    try {
-      const gpxCoords = JSON.parse(storedPath);
-      if (gpxCoords.length > 0) {
-        trackPolyline = L.polyline(gpxCoords, {
-          color: '#ff9800',
-          weight: 5,
-          opacity: 0.85,
-          lineJoin: 'round'
-        }).addTo(map);
-
-        map.fitBounds(trackPolyline.getBounds(), { padding: [20, 20] });
-        return;
+        map.fitBounds(plannedPolyline.getBounds(), { padding: [20, 20] });
       }
     } catch (e) {
       console.warn("Errore nel caricamento del percorso GPX", e);
     }
   }
 
-  // 2. CASO PDF / IMMAGINE: Inizializza la linea dinamica per tracciare il percorso in diretta
-  trackPolyline = L.polyline([], {
-    color: '#00b0ff', // Colore azzurro per la traccia in tempo reale del PDF/Immagine
-    weight: 5,
-    opacity: 0.9,
+  // 2. Prepara la linea azzurra per il percorso effettuato in tempo reale (GPX, PDF o Immagine)
+  livePolyline = L.polyline([], {
+    color: '#00b0ff',
+    weight: 6,
+    opacity: 0.95,
     lineJoin: 'round'
   }).addTo(map);
 }
@@ -238,7 +152,7 @@ function updateMapPosition(lat, lng) {
 
   currentCoords = { lat, lng };
 
-  // Aggiorna o crea il marker del veicolo
+  // Aggiorna o crea il marcatore del veicolo
   if (!userMarker) {
     userMarker = L.circleMarker([lat, lng], {
       color: '#ffffff',
@@ -248,16 +162,27 @@ function updateMapPosition(lat, lng) {
       radius: 9
     }).addTo(map);
     
-    map.setView([lat, lng], 16);
+    if (!plannedPolyline) {
+      map.setView([lat, lng], 16);
+    }
   } else {
     userMarker.setLatLng([lat, lng]);
   }
 
-  // Se stiamo navigando un PDF/Immagine (non c'è un GPX precaricato), disegna la linea man mano che ti muovi!
-  const storedPath = sessionStorage.getItem("roadbook_gpx_path");
-  if (!storedPath && trackPolyline) {
-    livePathCoords.push([lat, lng]);
-    trackPolyline.setLatLngs(livePathCoords);
+  // Aggiunge la nuova posizione alla linea azzurra in tempo reale
+  livePathCoords.push([lat, lng]);
+  if (livePolyline) {
+    livePolyline.setLatLngs(livePathCoords);
+  }
+}
+
+function recenterMap() {
+  if (!map) return;
+
+  if (currentCoords) {
+    map.flyTo([currentCoords.lat, currentCoords.lng], 16, { animate: true, duration: 0.8 });
+  } else {
+    alert("In attesa del segnale GPS...");
   }
 }
 
@@ -271,7 +196,6 @@ async function loadRoadbook(event) {
   const statusEl = document.getElementById("upload-status");
   const fileName = file.name.toLowerCase();
 
-  // HEIC iPhone conversion
   if (fileName.endsWith(".heic") || file.type === "image/heic") {
     if (statusEl) statusEl.innerText = "Conversione formato HEIC iPhone in corso...";
     try {
@@ -284,7 +208,6 @@ async function loadRoadbook(event) {
     }
   }
 
-  // Immagini standard (JPG, PNG)
   if (file.type.startsWith("image/")) {
     if (statusEl) statusEl.innerText = "Analisi OCR Immagine in corso...";
     const reader = new FileReader();
@@ -332,7 +255,6 @@ async function loadRoadbook(event) {
     return;
   }
 
-  // PDF
   if (file.type === "application/pdf") {
     loadPDF(file);
   }
@@ -422,7 +344,6 @@ function loadGPXFile(event) {
     let cumulativeDist = 0.0;
     let lastPt = null;
 
-    // Estragga TUTTI i punti della traccia per la mappa
     const trackPoints = xmlDoc.querySelectorAll("trkpt");
     trackPoints.forEach((pt) => {
       const lat = parseFloat(pt.getAttribute("lat"));
@@ -432,7 +353,6 @@ function loadGPXFile(event) {
       }
     });
 
-    // 1. Cerca punti di interesse/svolta espliciti (<wpt>)
     const waypoints = xmlDoc.querySelectorAll("wpt");
 
     if (waypoints.length > 0) {
@@ -462,7 +382,6 @@ function loadGPXFile(event) {
       });
     }
 
-    // 2. Fallback dai punti traccia (<trkpt>) se non ci sono <wpt>
     if (extractedStages.length === 0 && trackPoints.length > 0) {
       let pointIndex = 0;
       lastPt = null;
@@ -517,7 +436,6 @@ async function renderStageGraphic(stage) {
   if (!box) return;
   box.innerHTML = "";
 
-  // 1. FRECCIA GPX (SVG)
   if (stage.isGpxIcon) {
     let iconSvg = "⬆️";
     const type = stage.iconType || "";
@@ -530,7 +448,6 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 2. FRECCIA CROP DA IMMAGINE (JPG/PNG/HEIC)
   if (stage.isImage && stage.imageData) {
     try {
       const croppedImageBase64 = await extractDirectionFromImage(stage.imageData);
@@ -551,7 +468,6 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 3. FRECCIA CROP DA PDF
   try {
     const page = await pdfDoc.getPage(stage.page);
     const scale = 3.0;
