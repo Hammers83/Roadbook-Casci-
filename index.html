@@ -27,19 +27,19 @@
       <span class="title-bottom">READER</span>
     </h1>
     
-    <p class="subtitle">Carica PDF, Immagine (PNG, JPG, HEIC, GIF) o la traccia GPS ed inizia il viaggio.</p>
+    <p class="subtitle">Carica PDF o Immagine (PNG, JPG, HEIC) o la traccia GPS ed inizia il viaggio.</p>
 
     <div class="upload-container" style="display: flex; flex-direction: column; gap: 15px; max-width: 400px; margin: 0 auto; text-align: center;">
       
       <h2>Seleziona la Modalità di Navigazione</h2>
 
       <label for="file-upload-roadbook" class="btn-upload" style="background-color: #ff9800; padding: 15px; border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold;">
-        📄 Carica Roadbook (PDF / Immagine / GIF)
+        📄 Carica Roadbook (PDF / JPG / HEIC)
       </label>
       <input 
         id="file-upload-roadbook" 
         type="file" 
-        accept="application/pdf, image/*, image/gif, .gif, .heic" 
+        accept="application/pdf, image/jpeg, image/png, .heic" 
         style="display:none;" 
         onchange="loadRoadbook(event)" 
       />
