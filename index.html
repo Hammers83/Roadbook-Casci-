@@ -31,14 +31,24 @@
     
     <p class="subtitle">Carica PDF o Immagine (PNG, JPG, HEIC) e inizia il viaggio.</p>
 
-    <div class="upload-area">
-      <label for="pdf-file-input" class="btn-offroad-primary">
-        <span class="btn-icon">📂</span> CARICA ROADBOOK
-      </label>
-      <input type="file" id="pdf-file-input" accept="application/pdf, image/png, image/jpeg, image/jpg, image/heic, .heic" onchange="loadRoadbook(event)">
-      
-      <div id="upload-status" class="status-message"></div>
-    </div>
+    <div class="upload-container" style="display: flex; flex-direction: column; gap: 15px; max-width: 400px; margin: 0 auto; text-align: center;">
+  
+  <h2>Seleziona la Modalità di Navigazione</h2>
+
+  <!-- OPTION 1: ROADBOOK GRAFICO (PDF / IMMAGINI) -->
+  <label for="file-upload-roadbook" class="btn-upload" style="background-color: #ff9800; padding: 15px; border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold;">
+    📄 Carica Roadbook (PDF / JPG / HEIC)
+  </label>
+  <input id="file-upload-roadbook" type="file" accept="application/pdf, image/*, .heic" style="display:none;" onchange="loadRoadbook(event)" />
+
+  <!-- OPTION 2: TRACCIA GPS (GPX / OSMAND / WIKILOC) -->
+  <label for="file-upload-gpx" class="btn-upload" style="background-color: #00e676; padding: 15px; border-radius: 8px; color: #000; cursor: pointer; font-weight: bold;">
+    🗺️ Carica Traccia GPS (GPX / OsmAnd)
+  </label>
+  <input id="file-upload-gpx" type="file" accept=".gpx" style="display:none;" onchange="loadGPXFile(event)" />
+
+  <p id="upload-status" style="margin-top: 10px; font-size: 0.9rem; color: #ccc;"></p>
+</div>
 
     <div class="offroad-decorations">
       <span>TRIP METER</span>
