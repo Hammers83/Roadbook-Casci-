@@ -60,26 +60,6 @@ function playAlertBeep() {
   }
 }
 
-// CONVERTITORE UNIVERSALE PER GIF E IMMAGINI
-// Trasforma qualsiasi GIF (anche animata) o immagine in un Frame Statico JPEG pulito per Tesseract e Canvas
-async function convertGifOrImageToCanvasDataUrl(rawSrc) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      // Disegna il primo frame della GIF / Immagine
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
-    };
-    img.onerror = (err) => reject(err);
-    img.src = rawSrc;
-  });
-}
-
 // INIZIALIZZAZIONE
 document.addEventListener("DOMContentLoaded", () => {
   if (document.body.classList.contains("page-dashboard")) {
@@ -145,7 +125,7 @@ function updateMapPosition(lat, lng) {
 }
 
 // ---------------------------------------------------------
-// OPTION 1: LOAD ROADBOOK (PDF / JPG, PNG, HEIC, GIF)
+// OPTION 1: LOAD ROADBOOK (PDF / JPG, PNG, HEIC)
 // ---------------------------------------------------------
 async function loadRoadbook(event) {
   let file = event.target.files[0];
@@ -154,7 +134,7 @@ async function loadRoadbook(event) {
   const statusEl = document.getElementById("upload-status");
   const fileName = file.name.toLowerCase();
 
-  // 1. Conversione HEIC iPhone
+  // HEIC iPhone conversion
   if (fileName.endsWith(".heic") || file.type === "image/heic") {
     if (statusEl) statusEl.innerText = "Conversione formato HEIC iPhone in corso...";
     try {
@@ -167,21 +147,15 @@ async function loadRoadbook(event) {
     }
   }
 
-  // 2. Gestione Immagini, GIF e Formati Grafici
-  const isGif = fileName.endsWith(".gif") || file.type === "image/gif";
-  const isImage = file.type.startsWith("image/") || isGif;
-
-  if (isImage) {
-    if (statusEl) statusEl.innerText = isGif ? "Elaborazione GIF in corso..." : "Analisi OCR Immagine in corso...";
-    
+  // Immagini standard (JPG, PNG)
+  if (file.type.startsWith("image/")) {
+    if (statusEl) statusEl.innerText = "Analisi OCR Immagine in corso...";
     const reader = new FileReader();
     reader.onload = async function(e) {
+      const imageDataUrl = e.target.result;
       try {
-        // Normalizzazione obbligatoria per GIF e immagini non standard
-        const cleanImageDataUrl = await convertGifOrImageToCanvasDataUrl(e.target.result);
-
         const worker = await Tesseract.createWorker('ita');
-        const ret = await worker.recognize(cleanImageDataUrl);
+        const ret = await worker.recognize(imageDataUrl);
         await worker.terminate();
 
         const extractedText = ret.data.text;
@@ -206,30 +180,23 @@ async function loadRoadbook(event) {
         let noteText = lines.find(l => /[a-zA-Z]{3,}/.test(l) && !isDislivelloText(l)) || "INSERISCI DIREZIONE";
 
         extractedStages.push({
-          nota: 1, 
-          text: noteText, 
-          parziale: parzialeMetri, 
-          totale: totaleMetri, 
-          isImage: true, 
-          imageData: cleanImageDataUrl
+          nota: 1, text: noteText, parziale: parzialeMetri, totale: totaleMetri, isImage: true, imageData: imageDataUrl
         });
 
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.removeItem("roadbook_pdf_data");
         window.location.href = "src/dashboard.html";
       } catch (err) {
-        if (statusEl) statusEl.innerText = "Errore durante l'elaborazione del file GIF/Immagine.";
+        if (statusEl) statusEl.innerText = "Errore durante l'analisi dell'immagine.";
       }
     };
     reader.readAsDataURL(file);
     return;
   }
 
-  // 3. Gestione PDF
+  // PDF
   if (file.type === "application/pdf") {
     loadPDF(file);
-  } else {
-    if (statusEl) statusEl.innerText = "Formato non riconosciuto. Seleziona un PDF, GIF, JPG o PNG.";
   }
 }
 
@@ -364,13 +331,13 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDER FRECCIA (GPX / IMMAGINI-GIF / PDF)
+// RENDER FRECCIA / GRAFICA DIREZIONE (PDF E IMMAGINI)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
   box.innerHTML = "";
 
-  // 1. FRECCIA SVG DA GPX
+  // 1. FRECCIA GPX (SVG)
   if (stage.isGpxIcon) {
     let iconSvg = "⬆️";
     const type = stage.iconType || "";
@@ -383,7 +350,7 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 2. FRECCIA CROP DA IMMAGINE / GIF
+  // 2. FRECCIA CROP DA IMMAGINE (JPG/PNG/HEIC)
   if (stage.isImage && stage.imageData) {
     try {
       const croppedImageBase64 = await extractDirectionFromImage(stage.imageData);
@@ -404,10 +371,10 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 3. FRECCIA CROP DA PDF
+  // 3. FRECCIA CROP DA PDF (ALTA DEFINIZIONE E CONVERSIONE Y PRECISA)
   try {
     const page = await pdfDoc.getPage(stage.page);
-    const scale = 2.5;
+    const scale = 3.0; // Alta definizione per dettaglio freccia
     const viewport = page.getViewport({ scale: scale });
 
     const fullCanvas = document.createElement("canvas");
@@ -417,15 +384,19 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
+    // Conversione esatta da coordinate PDF (Y bottom-left) a Canvas (Y top-left)
     const unscaledViewport = page.getViewport({ scale: 1.0 });
     const pdfYFromTop = unscaledViewport.height - stage.yPos;
     
-    const boxHeight = 60 * scale;
-    const boxWidth = 80 * scale;
+    // Dimensioni mirate del box icona/freccia
+    const boxHeight = 70 * scale;
+    const boxWidth = 90 * scale;
     
+    // Inquadratura sulla colonna centrale del Roadbook
     let cropY = (pdfYFromTop * scale) - (boxHeight / 2);
     let cropX = (viewport.width * 0.50) - (boxWidth / 2);
 
+    // Evita di ritagliare fuori dai bordi della pagina
     cropY = Math.max(0, Math.min(cropY, viewport.height - boxHeight));
 
     const cropCanvas = document.createElement("canvas");
