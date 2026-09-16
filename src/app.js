@@ -33,14 +33,12 @@ function playAlertBeep() {
       audioCtx.resume();
     }
 
-    // Crea un oscillatore per generare un suono nitido
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    osc.type = "sine"; // Onda sinusoidale
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Frequenza 880 Hz (Nota La/A5)
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
     
-    // Inviluppo del volume (fade in breve e sfumatura rapida)
     gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.8, audioCtx.currentTime + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
@@ -124,7 +122,7 @@ function updateMapPosition(lat, lng) {
   }
 }
 
-// CARICAMENTO UNIVERSELE (PDF, PNG, JPG, HEIC iPhone)
+// CARICAMENTO UNIVERSELE CON ESTRAZIONE DATI
 async function loadRoadbook(event) {
   let file = event.target.files[0];
   if (!file) return;
@@ -151,35 +149,59 @@ async function loadRoadbook(event) {
     }
   }
 
-  // 2. Elaborazione Immagini
+  // 2. Elaborazione ed Estrazione Dati da IMMAGINI (OCR Tesseract)
   if (file.type.startsWith("image/")) {
-    if (statusEl) statusEl.innerText = "Elaborazione Immagine...";
+    if (statusEl) statusEl.innerText = "Analisi OCR Immagine in corso...";
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
       const imageDataUrl = e.target.result;
 
-      const imageStages = [
-        {
+      try {
+        const worker = await Tesseract.createWorker('ita');
+        const ret = await worker.recognize(imageDataUrl);
+        await worker.terminate();
+
+        const extractedText = ret.data.text;
+        const lines = extractedText.split('\n').filter(l => l.trim().length > 0);
+
+        let extractedStages = [];
+        let numbersFound = [];
+
+        // Ricerca distanze e numeri
+        const numRegex = /\b\d+([.,]\d+)?\b/g;
+        let match;
+        while ((match = numRegex.exec(extractedText)) !== null) {
+          numbersFound.push(parseFloat(match[0].replace(',', '.')));
+        }
+
+        let parziale = numbersFound.length > 0 ? numbersFound[0] : 0.0;
+        let totale = numbersFound.length > 1 ? numbersFound[1] : parziale;
+
+        let noteText = lines.find(l => /[a-zA-Z]{3,}/.test(l)) || "INSERISCI DIREZIONE";
+
+        extractedStages.push({
           nota: 1,
-          text: "ROADBOOK DA IMMAGINE",
-          parziale: 0.00,
-          totale: 0.00,
+          text: noteText,
+          parziale: parziale, // Metri/Km parziali
+          totale: totale,     // Metri/Km totali
           isImage: true,
           imageData: imageDataUrl
-        }
-      ];
+        });
 
-      sessionStorage.setItem("roadbook_route", JSON.stringify(imageStages));
-      sessionStorage.removeItem("roadbook_pdf_data");
-      
-      window.location.href = "src/dashboard.html";
+        sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
+        sessionStorage.removeItem("roadbook_pdf_data");
+
+        window.location.href = "src/dashboard.html";
+      } catch (err) {
+        if (statusEl) statusEl.innerText = "Errore durante l'analisi OCR dell'immagine.";
+      }
     };
     reader.readAsDataURL(file);
     return;
   }
 
-  // 3. Elaborazione PDF
+  // 3. Elaborazione ed Estrazione Dati da PDF
   if (file.type === "application/pdf") {
     loadPDF(file);
   } else {
@@ -187,7 +209,7 @@ async function loadRoadbook(event) {
   }
 }
 
-// PARSING PDF
+// PARSING E RILEVAMENTO TAPPE DA PDF
 async function loadPDF(file) {
   const statusEl = document.getElementById("upload-status");
   if (statusEl) statusEl.innerText = "Analisi Roadbook PDF in corso...";
@@ -236,7 +258,7 @@ async function loadPDF(file) {
                 noteText = contextItem;
               }
               
-              if (/^\d{1,2},\d{3}$/.test(contextItem)) {
+              if (/^\d{1,2}[.,]\d{2,3}$/.test(contextItem)) {
                 valuesFound.push(parseFloat(contextItem.replace(',', '.')));
               }
             }
@@ -246,10 +268,10 @@ async function loadPDF(file) {
               let totale = valuesFound.length > 1 ? valuesFound[1] : parziale;
 
               extractedStages.push({
-                nota: notaNum,
-                text: noteText,
-                parziale: parziale,
-                totale: totale,
+                nota: notaNum,            // Numero Tappa
+                text: noteText,           // Indicazioni / Note
+                parziale: parziale,       // Metri / Km Parziali
+                totale: totale,           // Metri / Km Totali
                 page: entry.page,
                 yPos: yPosition
               });
@@ -282,7 +304,7 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDER GRAFICA NOTA
+// RENDER RITAGLIO IMMAGINE DI DIREZIONE (TULIP)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
@@ -317,6 +339,7 @@ async function renderStageGraphic(stage) {
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
 
+    // Ritaglio dell'area centrale del simbolo di direzione (Tulip)
     const cropX = viewport.width * 0.30; 
     const cropWidth = viewport.width * 0.40;
     const stageHeight = viewport.height / 8;
@@ -339,7 +362,7 @@ async function renderStageGraphic(stage) {
   }
 }
 
-// AGGIORNA VISUALIZZAZIONE NOTA
+// AGGIORNA VISUALIZZAZIONE NOTA NELLA DASHBOARD
 function updateStageDisplay() {
   if (route.length === 0) return;
 
@@ -370,11 +393,9 @@ function updateDisplays() {
   const current = route[currentStageIndex];
   let remainingTrip = current.parziale - tripKmTraveled;
 
-  // CONTROLLO PARZIALE = 0 CON SUONO
   if (remainingTrip <= 0 && current.parziale > 0 && !isAutoAdvancing) {
     isAutoAdvancing = true;
     
-    // Riproduce il bip acustico prima di cambiare nota
     playAlertBeep();
 
     if (currentStageIndex < route.length - 1) {
