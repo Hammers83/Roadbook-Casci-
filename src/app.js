@@ -125,7 +125,7 @@ function updateMapPosition(lat, lng) {
 }
 
 // ---------------------------------------------------------
-// OPTION 1: LOAD ROADBOOK (PDF / IMMAGINI JPG, PNG, HEIC)
+// OPTION 1: LOAD ROADBOOK (PDF / JPG, PNG, HEIC, GIF)
 // ---------------------------------------------------------
 async function loadRoadbook(event) {
   let file = event.target.files[0];
@@ -146,8 +146,9 @@ async function loadRoadbook(event) {
     }
   }
 
-  if (file.type.startsWith("image/")) {
-    if (statusEl) statusEl.innerText = "Analisi OCR Immagine in corso...";
+  // SUPPORTO IMMAGINI (Inclusi file GIF, PNG, JPG)
+  if (file.type.startsWith("image/") || fileName.endsWith(".gif")) {
+    if (statusEl) statusEl.innerText = "Analisi OCR Immagine/GIF in corso...";
     const reader = new FileReader();
     reader.onload = async function(e) {
       const imageDataUrl = e.target.result;
@@ -185,7 +186,7 @@ async function loadRoadbook(event) {
         sessionStorage.removeItem("roadbook_pdf_data");
         window.location.href = "src/dashboard.html";
       } catch (err) {
-        if (statusEl) statusEl.innerText = "Errore durante l'analisi dell'immagine.";
+        if (statusEl) statusEl.innerText = "Errore durante l'analisi dell'immagine/GIF.";
       }
     };
     reader.readAsDataURL(file);
@@ -328,7 +329,7 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDER CORRETTO DELLA FRECCIA (CONVERSIONE COORDINATE Y PDF.JS + CANVAS)
+// RENDER FRECCIA (GPX / IMMAGINI-GIF / PDF)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
@@ -347,7 +348,7 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 2. FRECCIA CROP DA IMMAGINE
+  // 2. FRECCIA CROP DA IMMAGINE / GIF
   if (stage.isImage && stage.imageData) {
     try {
       const croppedImageBase64 = await extractDirectionFromImage(stage.imageData);
@@ -368,7 +369,7 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 3. FRECCIA CROP DA PDF CON ASSE Y CORRETTO
+  // 3. FRECCIA CROP DA PDF
   try {
     const page = await pdfDoc.getPage(stage.page);
     const scale = 2.5;
@@ -381,7 +382,6 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
-    // Conversione esatta sistema coordinate Y PDF -> Canvas HTML
     const unscaledViewport = page.getViewport({ scale: 1.0 });
     const pdfYFromTop = unscaledViewport.height - stage.yPos;
     
