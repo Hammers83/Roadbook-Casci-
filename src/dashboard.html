@@ -61,7 +61,12 @@
         <!-- FINESTRA MAPPA POSIZIONE ATTUALE -->
         <div class="map-container">
           <div class="map-label">📍 Posizione Attuale</div>
-          <div id="map"></div>
+          <div id="map" style="position: relative;">
+            <!-- Pulsante per ricentrare la mappa sulla tua posizione attuale -->
+            <button id="btn-recenter" onclick="recenterMap()" title="Centra posizione">
+              🎯
+            </button>
+          </div>
         </div>
       </section>
 
