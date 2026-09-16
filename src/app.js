@@ -22,6 +22,17 @@ let userMarker = null;
 // Context Web Audio per il suono di avviso
 let audioCtx = null;
 
+// FUNZIONE PER VERIFICARE SE UNA STRINGA SI RIFERISCE AL DISLIVELLO
+function isDislivelloText(text) {
+  if (!text) return false;
+  const clean = text.toLowerCase().trim();
+  
+  // Regex per individuare 'm.dis.', 'm.d.l.', 'dislivello', 'd+', 'd-', 'alt', 'quota', ecc.
+  const dislivelloRegex = /(m\.?\s*dis\.?|m\.?\s*d\.?\s*l\.?|dislivello|disl|d\+|d\-|\+|-|alt|quota|m\.s\.l\.m)/i;
+  
+  return dislivelloRegex.test(clean);
+}
+
 // SINTETIZZATORE SUONO DI AVVISO (Bip al raggiungimento dello 0)
 function playAlertBeep() {
   try {
@@ -122,7 +133,7 @@ function updateMapPosition(lat, lng) {
   }
 }
 
-// CARICAMENTO UNIVERSELE CON ESTRAZIONE DATI
+// CARICAMENTO UNIVERSELE CON CONTROLLO ESCLUSIVO METRI PARZIALI
 async function loadRoadbook(event) {
   let file = event.target.files[0];
   if (!file) return;
@@ -166,25 +177,39 @@ async function loadRoadbook(event) {
         const lines = extractedText.split('\n').filter(l => l.trim().length > 0);
 
         let extractedStages = [];
-        let numbersFound = [];
+        let validDistances = [];
 
-        // Ricerca distanze e numeri
-        const numRegex = /\b\d+([.,]\d+)?\b/g;
-        let match;
-        while ((match = numRegex.exec(extractedText)) !== null) {
-          numbersFound.push(parseFloat(match[0].replace(',', '.')));
+        lines.forEach(line => {
+          // SALTA RIGHE CHE CONTENGONO TERMINI DI DISLIVELLO (m.dis., m.d.l., ecc.)
+          if (isDislivelloText(line)) return;
+
+          const numMatches = line.match(/\b\d+([.,]\d+)?\b/g);
+          if (numMatches) {
+            numMatches.forEach(m => {
+              const val = parseFloat(m.replace(',', '.'));
+              if (val > 0) validDistances.push(val);
+            });
+          }
+        });
+
+        let parzialeMetri = 0.0;
+        let totaleMetri = 0.0;
+
+        if (validDistances.length >= 2) {
+          parzialeMetri = Math.min(...validDistances);
+          totaleMetri = Math.max(...validDistances);
+        } else if (validDistances.length === 1) {
+          parzialeMetri = validDistances[0];
+          totaleMetri = validDistances[0];
         }
 
-        let parziale = numbersFound.length > 0 ? numbersFound[0] : 0.0;
-        let totale = numbersFound.length > 1 ? numbersFound[1] : parziale;
-
-        let noteText = lines.find(l => /[a-zA-Z]{3,}/.test(l)) || "INSERISCI DIREZIONE";
+        let noteText = lines.find(l => /[a-zA-Z]{3,}/.test(l) && !isDislivelloText(l)) || "INSERISCI DIREZIONE";
 
         extractedStages.push({
           nota: 1,
           text: noteText,
-          parziale: parziale, // Metri/Km parziali
-          totale: totale,     // Metri/Km totali
+          parziale: parzialeMetri, // SOLO METRI / KM PARZIALI (NO DISLIVELLO)
+          totale: totaleMetri,
           isImage: true,
           imageData: imageDataUrl
         });
@@ -209,7 +234,7 @@ async function loadRoadbook(event) {
   }
 }
 
-// PARSING E RILEVAMENTO TAPPE DA PDF
+// PARSING E RILEVAMENTO TAPPE DA PDF (CON FILTRO FERREO ANTI-DISLIVELLO)
 async function loadPDF(file) {
   const statusEl = document.getElementById("upload-status");
   if (statusEl) statusEl.innerText = "Analisi Roadbook PDF in corso...";
@@ -246,32 +271,47 @@ async function loadPDF(file) {
         if (/^\d{1,3}$/.test(entry.text)) {
           let notaNum = parseInt(entry.text);
 
-          if (notaNum > 0 && notaNum < 150) {
+          if (notaNum > 0 && notaNum < 200) {
             let noteText = "SEGUI STRADA";
-            let valuesFound = [];
+            let distanceValues = [];
             let yPosition = entry.transform ? entry.transform[5] : 0;
 
             for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
               let contextItem = allItems[j].text;
               
+              // SCARTA QUALSIASI TESTO LEGATO AL DISLIVELLO (m.dis., m.d.l., dislivello, d+, d-, ecc.)
+              if (isDislivelloText(contextItem)) {
+                continue;
+              }
+
               if (/[A-Z]{3,}/.test(contextItem) && !contextItem.includes("AUTOSTRADA") && !contextItem.includes("DISTANZE")) {
                 noteText = contextItem;
               }
               
+              // ESTRAGGI SOLO VALORI DI DISTANZA
               if (/^\d{1,2}[.,]\d{2,3}$/.test(contextItem)) {
-                valuesFound.push(parseFloat(contextItem.replace(',', '.')));
+                distanceValues.push(parseFloat(contextItem.replace(',', '.')));
               }
             }
 
             if (!extractedStages.some(s => s.nota === notaNum)) {
-              let parziale = valuesFound.length > 0 ? valuesFound[0] : 0.0;
-              let totale = valuesFound.length > 1 ? valuesFound[1] : parziale;
+              let parziale = 0.0;
+              let totale = 0.0;
+
+              if (distanceValues.length >= 2) {
+                // Il parziale è la distanza chilometrica o metrica tra tappe (valore minore)
+                parziale = Math.min(...distanceValues);
+                totale = Math.max(...distanceValues);
+              } else if (distanceValues.length === 1) {
+                parziale = distanceValues[0];
+                totale = distanceValues[0];
+              }
 
               extractedStages.push({
                 nota: notaNum,            // Numero Tappa
                 text: noteText,           // Indicazioni / Note
-                parziale: parziale,       // Metri / Km Parziali
-                totale: totale,           // Metri / Km Totali
+                parziale: parziale,       // ESCLUSIVAMENTE METRI / KM PARZIALI
+                totale: totale,           // METRI / KM TOTALI
                 page: entry.page,
                 yPos: yPosition
               });
@@ -304,7 +344,7 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// RENDER RITAGLIO IMMAGINE DI DIREZIONE (TULIP)
+// RENDER RITAGLIO ISOLATO E PRECISO DELLA FRECCIA DI DIREZIONE (TULIP)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
@@ -327,7 +367,9 @@ async function renderStageGraphic(stage) {
 
   try {
     const page = await pdfDoc.getPage(stage.page);
-    const viewport = page.getViewport({ scale: 2.0 });
+    // Scale elevato a 3.0 per la massima nitidezza della sola icona
+    const scale = 3.0;
+    const viewport = page.getViewport({ scale: scale });
     
     const fullCanvas = document.createElement("canvas");
     const fullCtx = fullCanvas.getContext("2d");
@@ -339,12 +381,15 @@ async function renderStageGraphic(stage) {
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
 
-    // Ritaglio dell'area centrale del simbolo di direzione (Tulip)
-    const cropX = viewport.width * 0.30; 
-    const cropWidth = viewport.width * 0.40;
-    const stageHeight = viewport.height / 8;
+    // ISOLAMENTO DELLA SOLA COLONNA CENTRALE (SIMBOLO DI DIREZIONE / TULIP)
+    const cropX = viewport.width * 0.35; 
+    const cropWidth = viewport.width * 0.30;
     
-    let cropY = (viewport.height - (stage.yPos * 2.0)) - (stageHeight / 2);
+    // Altezza focalizzata sulla singola casella
+    const stageHeight = viewport.height / 9.5;
+    
+    // Posizionamento verticale centrato
+    let cropY = (viewport.height - (stage.yPos * scale)) - (stageHeight / 2);
     if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
 
     cropCanvas.width = cropWidth;
@@ -355,6 +400,11 @@ async function renderStageGraphic(stage) {
       cropX, cropY, cropWidth, stageHeight,
       0, 0, cropWidth, stageHeight
     );
+
+    cropCanvas.style.maxWidth = "100%";
+    cropCanvas.style.maxHeight = "100%";
+    cropCanvas.style.objectFit = "contain";
+    cropCanvas.style.borderRadius = "8px";
 
     box.appendChild(cropCanvas);
   } catch (e) {
