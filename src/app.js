@@ -263,7 +263,8 @@ async function loadPDF(file) {
 }
 
 // ---------------------------------------------------------
-// OPTION 2: LOAD TRACCIA GPS (GPX DA OSMAND / WIKILOC)
+// OPTION 2: LOAD TRACCIA GPS (GPX DA OSMAND / WIKILOC / GARMIN)
+// Supporta sia Waypoint (<wpt>) che Punti Traccia (<trkpt>)
 // ---------------------------------------------------------
 function loadGPXFile(event) {
   const file = event.target.files[0];
@@ -282,6 +283,7 @@ function loadGPXFile(event) {
     let cumulativeDist = 0.0;
     let lastPt = null;
 
+    // OPZIONE 1: Cerca punti di interesse/svolta espliciti (<wpt>)
     const waypoints = xmlDoc.querySelectorAll("wpt");
 
     if (waypoints.length > 0) {
@@ -294,10 +296,7 @@ function loadGPXFile(event) {
         let noteText = nameEl ? nameEl.textContent : `Svolta ${index + 1}`;
         let symType = symEl ? symEl.textContent.toLowerCase() : "turn";
 
-        let segmentDist = 0.0;
-        if (lastPt) {
-          segmentDist = calculateDistance(lastPt.lat, lastPt.lon, lat, lon);
-        }
+        let segmentDist = lastPt ? calculateDistance(lastPt.lat, lastPt.lon, lat, lon) : 0.0;
         cumulativeDist += segmentDist;
         lastPt = { lat, lon };
 
@@ -312,14 +311,46 @@ function loadGPXFile(event) {
           lon: lon
         });
       });
+    } 
+
+    // OPZIONE 2 (FALLBACK): Se non ci sono <wpt>, legge i punti traccia (<trkpt>)
+    if (extractedStages.length === 0) {
+      const trackPoints = xmlDoc.querySelectorAll("trkpt");
+      let pointIndex = 0;
+
+      trackPoints.forEach((pt) => {
+        const lat = parseFloat(pt.getAttribute("lat"));
+        const lon = parseFloat(pt.getAttribute("lon"));
+
+        let segmentDist = lastPt ? calculateDistance(lastPt.lat, lastPt.lon, lat, lon) : 0.0;
+
+        // Campiona un punto ogni ~300 metri (0.3 km) per creare i segmenti Roadbook
+        if (!lastPt || segmentDist >= 0.3) {
+          cumulativeDist += segmentDist;
+          lastPt = { lat, lon };
+          pointIndex++;
+
+          extractedStages.push({
+            nota: pointIndex,
+            text: `Punto Traccia ${pointIndex}`,
+            parziale: segmentDist,
+            totale: cumulativeDist,
+            isGpxIcon: true,
+            iconType: "straight",
+            lat: lat,
+            lon: lon
+          });
+        }
+      });
     }
 
+    // Salva le note trovate ed effettua il reindirizzamento
     if (extractedStages.length > 0) {
       sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
       sessionStorage.removeItem("roadbook_pdf_data");
       window.location.href = "src/dashboard.html";
     } else {
-      if (statusEl) statusEl.innerText = "Nessun waypoint di navigazione presente nel GPX.";
+      if (statusEl) statusEl.innerText = "File GPX vuoto o non valido.";
     }
   };
   reader.readAsText(file);
