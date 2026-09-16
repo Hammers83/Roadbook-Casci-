@@ -328,7 +328,7 @@ function clearPDF() {
   window.location.href = "../index.html";
 }
 
-// CROP DINAMICO FRECCIA O RENDER SVG GPX
+// RENDER CORRETTO DELLA FRECCIA (CONVERSIONE COORDINATE Y PDF.JS + CANVAS)
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
@@ -368,32 +368,11 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 3. FRECCIA CROP DINAMICO DA PDF
+  // 3. FRECCIA CROP DA PDF CON ASSE Y CORRETTO
   try {
     const page = await pdfDoc.getPage(stage.page);
-    const scale = 3.0;
+    const scale = 2.5;
     const viewport = page.getViewport({ scale: scale });
-
-    const textContent = await page.getTextContent();
-    const pageItems = textContent.items;
-
-    let stageY = stage.yPos;
-    let minX_AfterText = viewport.width;
-    let maxX_BeforeText = 0;
-
-    pageItems.forEach(item => {
-      const itemY = item.transform[5];
-      const itemX = item.transform[4] * scale;
-      const itemWidth = (item.width || 0) * scale;
-
-      if (Math.abs(itemY - stageY) < 25) {
-        if (itemX < viewport.width * 0.5) {
-          if ((itemX + itemWidth) > maxX_BeforeText) maxX_BeforeText = itemX + itemWidth;
-        } else {
-          if (itemX < minX_AfterText) minX_AfterText = itemX;
-        }
-      }
-    });
 
     const fullCanvas = document.createElement("canvas");
     const fullCtx = fullCanvas.getContext("2d");
@@ -402,22 +381,33 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
-    let cropX = (maxX_BeforeText > 0 && minX_AfterText > maxX_BeforeText) ? maxX_BeforeText + 10 : viewport.width * 0.42;
-    let cropWidth = (maxX_BeforeText > 0 && minX_AfterText > maxX_BeforeText) ? (minX_AfterText - maxX_BeforeText) - 20 : viewport.width * 0.18;
+    // Conversione esatta sistema coordinate Y PDF -> Canvas HTML
+    const unscaledViewport = page.getViewport({ scale: 1.0 });
+    const pdfYFromTop = unscaledViewport.height - stage.yPos;
+    
+    const boxHeight = 60 * scale;
+    const boxWidth = 80 * scale;
+    
+    let cropY = (pdfYFromTop * scale) - (boxHeight / 2);
+    let cropX = (viewport.width * 0.50) - (boxWidth / 2);
 
-    const rowHeight = viewport.height / 12; 
-    let cropY = (viewport.height - (stageY * scale)) - (rowHeight * 0.4);
-    if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
+    cropY = Math.max(0, Math.min(cropY, viewport.height - boxHeight));
 
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
-    cropCanvas.width = Math.max(cropWidth, 50);
-    cropCanvas.height = rowHeight;
+    cropCanvas.width = boxWidth;
+    cropCanvas.height = boxHeight;
 
-    cropCtx.drawImage(fullCanvas, cropX, cropY, cropWidth, rowHeight, 0, 0, cropWidth, rowHeight);
+    cropCtx.drawImage(
+      fullCanvas,
+      cropX, cropY, boxWidth, boxHeight,
+      0, 0, boxWidth, boxHeight
+    );
+
     cropCanvas.style.maxWidth = "100%";
     cropCanvas.style.maxHeight = "100%";
     cropCanvas.style.objectFit = "contain";
+    cropCanvas.style.borderRadius = "6px";
 
     box.appendChild(cropCanvas);
   } catch (e) {
