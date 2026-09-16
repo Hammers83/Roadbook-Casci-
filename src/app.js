@@ -18,6 +18,7 @@ let isAutoAdvancing = false;
 // Variabili Mappa
 let map = null;
 let userMarker = null;
+let trackPolyline = null;
 
 // Context Web Audio
 let audioCtx = null;
@@ -104,23 +105,54 @@ function handleUserInteraction() {
   }
 }
 
-// MAPPA
+// ---------------------------------------------------------
+// MAPPA & TRACKING IN TEMPO REALE
+// ---------------------------------------------------------
 function initMap() {
   const mapEl = document.getElementById("map");
   if (!mapEl) return;
 
   map = L.map('map', { zoomControl: false, attributionControl: false }).setView([41.9028, 12.4964], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  // Recupera e disegna il percorso salvato dal GPX sulla mappa
+  const storedPath = sessionStorage.getItem("roadbook_gpx_path");
+  if (storedPath) {
+    try {
+      const gpxCoords = JSON.parse(storedPath);
+      if (gpxCoords.length > 0) {
+        trackPolyline = L.polyline(gpxCoords, {
+          color: '#ff9800',
+          weight: 5,
+          opacity: 0.85,
+          lineJoin: 'round'
+        }).addTo(map);
+
+        map.fitBounds(trackPolyline.getBounds(), { padding: [20, 20] });
+      }
+    } catch (e) {
+      console.warn("Errore nel caricamento del percorso GPX sulla mappa", e);
+    }
+  }
 }
 
 function updateMapPosition(lat, lng) {
   if (!map) return;
+
   if (!userMarker) {
-    userMarker = L.circleMarker([lat, lng], { color: '#00e676', fillColor: '#00e676', fillOpacity: 0.8, radius: 8 }).addTo(map);
-    map.setView([lat, lng], 16);
+    userMarker = L.circleMarker([lat, lng], {
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#00e676',
+      fillOpacity: 1,
+      radius: 9
+    }).addTo(map);
+    
+    if (!trackPolyline) {
+      map.setView([lat, lng], 16);
+    }
   } else {
     userMarker.setLatLng([lat, lng]);
-    map.panTo([lat, lng]);
   }
 }
 
@@ -185,6 +217,7 @@ async function loadRoadbook(event) {
 
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.removeItem("roadbook_pdf_data");
+        sessionStorage.removeItem("roadbook_gpx_path");
         window.location.href = "src/dashboard.html";
       } catch (err) {
         if (statusEl) statusEl.innerText = "Errore durante l'analisi dell'immagine.";
@@ -251,6 +284,7 @@ async function loadPDF(file) {
         extractedStages.sort((a, b) => a.nota - b.nota);
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.setItem("roadbook_pdf_data", JSON.stringify(Array.from(typedarray)));
+        sessionStorage.removeItem("roadbook_gpx_path");
         window.location.href = "src/dashboard.html";
       } else {
         if (statusEl) statusEl.innerText = "Nessuna nota trovata nel PDF.";
@@ -264,7 +298,6 @@ async function loadPDF(file) {
 
 // ---------------------------------------------------------
 // OPTION 2: LOAD TRACCIA GPS (GPX DA OSMAND / WIKILOC / GARMIN)
-// Supporta sia Waypoint (<wpt>) che Punti Traccia (<trkpt>)
 // ---------------------------------------------------------
 function loadGPXFile(event) {
   const file = event.target.files[0];
@@ -280,10 +313,21 @@ function loadGPXFile(event) {
     const xmlDoc = parser.parseFromString(text, "text/xml");
 
     let extractedStages = [];
+    let fullTrackPoints = [];
     let cumulativeDist = 0.0;
     let lastPt = null;
 
-    // OPZIONE 1: Cerca punti di interesse/svolta espliciti (<wpt>)
+    // Estragga TUTTI i punti della traccia per la mappa
+    const trackPoints = xmlDoc.querySelectorAll("trkpt");
+    trackPoints.forEach((pt) => {
+      const lat = parseFloat(pt.getAttribute("lat"));
+      const lon = parseFloat(pt.getAttribute("lon"));
+      if (!isNaN(lat) && !isNaN(lon)) {
+        fullTrackPoints.push([lat, lon]);
+      }
+    });
+
+    // 1. Cerca punti di interesse/svolta espliciti (<wpt>)
     const waypoints = xmlDoc.querySelectorAll("wpt");
 
     if (waypoints.length > 0) {
@@ -311,12 +355,12 @@ function loadGPXFile(event) {
           lon: lon
         });
       });
-    } 
+    }
 
-    // OPZIONE 2 (FALLBACK): Se non ci sono <wpt>, legge i punti traccia (<trkpt>)
-    if (extractedStages.length === 0) {
-      const trackPoints = xmlDoc.querySelectorAll("trkpt");
+    // 2. Fallback dai punti traccia (<trkpt>) se non ci sono <wpt>
+    if (extractedStages.length === 0 && trackPoints.length > 0) {
       let pointIndex = 0;
+      lastPt = null;
 
       trackPoints.forEach((pt) => {
         const lat = parseFloat(pt.getAttribute("lat"));
@@ -324,7 +368,6 @@ function loadGPXFile(event) {
 
         let segmentDist = lastPt ? calculateDistance(lastPt.lat, lastPt.lon, lat, lon) : 0.0;
 
-        // Campiona un punto ogni ~300 metri (0.3 km) per creare i segmenti Roadbook
         if (!lastPt || segmentDist >= 0.3) {
           cumulativeDist += segmentDist;
           lastPt = { lat, lon };
@@ -344,9 +387,9 @@ function loadGPXFile(event) {
       });
     }
 
-    // Salva le note trovate ed effettua il reindirizzamento
     if (extractedStages.length > 0) {
       sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
+      sessionStorage.setItem("roadbook_gpx_path", JSON.stringify(fullTrackPoints));
       sessionStorage.removeItem("roadbook_pdf_data");
       window.location.href = "src/dashboard.html";
     } else {
@@ -359,10 +402,11 @@ function loadGPXFile(event) {
 function clearPDF() {
   sessionStorage.removeItem("roadbook_route");
   sessionStorage.removeItem("roadbook_pdf_data");
+  sessionStorage.removeItem("roadbook_gpx_path");
   window.location.href = "../index.html";
 }
 
-// RENDER FRECCIA / GRAFICA DIREZIONE (PDF E IMMAGINI)
+// RENDER FRECCIA / GRAFICA DIREZIONE
 async function renderStageGraphic(stage) {
   const box = document.getElementById("current-direction-box");
   if (!box) return;
@@ -402,10 +446,10 @@ async function renderStageGraphic(stage) {
     return;
   }
 
-  // 3. FRECCIA CROP DA PDF (ALTA DEFINIZIONE E CONVERSIONE Y PRECISA)
+  // 3. FRECCIA CROP DA PDF
   try {
     const page = await pdfDoc.getPage(stage.page);
-    const scale = 3.0; // Alta definizione per dettaglio freccia
+    const scale = 3.0;
     const viewport = page.getViewport({ scale: scale });
 
     const fullCanvas = document.createElement("canvas");
@@ -415,19 +459,15 @@ async function renderStageGraphic(stage) {
 
     await page.render({ canvasContext: fullCtx, viewport: viewport }).promise;
 
-    // Conversione esatta da coordinate PDF (Y bottom-left) a Canvas (Y top-left)
     const unscaledViewport = page.getViewport({ scale: 1.0 });
     const pdfYFromTop = unscaledViewport.height - stage.yPos;
     
-    // Dimensioni mirate del box icona/freccia
     const boxHeight = 70 * scale;
     const boxWidth = 90 * scale;
     
-    // Inquadratura sulla colonna centrale del Roadbook
     let cropY = (pdfYFromTop * scale) - (boxHeight / 2);
     let cropX = (viewport.width * 0.50) - (boxWidth / 2);
 
-    // Evita di ritagliare fuori dai bordi della pagina
     cropY = Math.max(0, Math.min(cropY, viewport.height - boxHeight));
 
     const cropCanvas = document.createElement("canvas");
