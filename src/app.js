@@ -22,14 +22,14 @@ let userMarker = null;
 // Context Web Audio per il suono di avviso
 let audioCtx = null;
 
-// FUNZIONE PER VERIFICARE SE UNA STRINGA SI RIFERISCE AL DISLIVELLO
+// Elemento Video Fallback per Safari iOS
+let fallbackVideoEl = null;
+
+// VERIFICA SE UNA STRINGA SI RIFERISCE AL DISLIVELLO
 function isDislivelloText(text) {
   if (!text) return false;
   const clean = text.toLowerCase().trim();
-  
-  // Regex per individuare 'm.dis.', 'm.d.l.', 'dislivello', 'd+', 'd-', 'alt', 'quota', ecc.
   const dislivelloRegex = /(m\.?\s*dis\.?|m\.?\s*d\.?\s*l\.?|dislivello|disl|d\+|d\-|\+|-|alt|quota|m\.s\.l\.m)/i;
-  
   return dislivelloRegex.test(clean);
 }
 
@@ -97,6 +97,17 @@ function initDashboard() {
   } else {
     updateStageDisplay();
     startGPS();
+  }
+
+  // Forza l'attivazione del Wake Lock al primo tocco dell'utente su Safari iOS
+  document.addEventListener("touchstart", handleUserInteraction, { once: true });
+  document.addEventListener("click", handleUserInteraction, { once: true });
+}
+
+function handleUserInteraction() {
+  requestWakeLock();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
 }
 
@@ -180,7 +191,6 @@ async function loadRoadbook(event) {
         let validDistances = [];
 
         lines.forEach(line => {
-          // SALTA RIGHE CHE CONTENGONO TERMINI DI DISLIVELLO (m.dis., m.d.l., ecc.)
           if (isDislivelloText(line)) return;
 
           const numMatches = line.match(/\b\d+([.,]\d+)?\b/g);
@@ -208,7 +218,7 @@ async function loadRoadbook(event) {
         extractedStages.push({
           nota: 1,
           text: noteText,
-          parziale: parzialeMetri, // SOLO METRI / KM PARZIALI (NO DISLIVELLO)
+          parziale: parzialeMetri,
           totale: totaleMetri,
           isImage: true,
           imageData: imageDataUrl
@@ -279,7 +289,6 @@ async function loadPDF(file) {
             for (let j = Math.max(0, i - 4); j < Math.min(allItems.length, i + 6); j++) {
               let contextItem = allItems[j].text;
               
-              // SCARTA QUALSIASI TESTO LEGATO AL DISLIVELLO (m.dis., m.d.l., dislivello, d+, d-, ecc.)
               if (isDislivelloText(contextItem)) {
                 continue;
               }
@@ -288,7 +297,6 @@ async function loadPDF(file) {
                 noteText = contextItem;
               }
               
-              // ESTRAGGI SOLO VALORI DI DISTANZA
               if (/^\d{1,2}[.,]\d{2,3}$/.test(contextItem)) {
                 distanceValues.push(parseFloat(contextItem.replace(',', '.')));
               }
@@ -299,7 +307,6 @@ async function loadPDF(file) {
               let totale = 0.0;
 
               if (distanceValues.length >= 2) {
-                // Il parziale è la distanza chilometrica o metrica tra tappe (valore minore)
                 parziale = Math.min(...distanceValues);
                 totale = Math.max(...distanceValues);
               } else if (distanceValues.length === 1) {
@@ -308,10 +315,10 @@ async function loadPDF(file) {
               }
 
               extractedStages.push({
-                nota: notaNum,            // Numero Tappa
-                text: noteText,           // Indicazioni / Note
-                parziale: parziale,       // ESCLUSIVAMENTE METRI / KM PARZIALI
-                totale: totale,           // METRI / KM TOTALI
+                nota: notaNum,
+                text: noteText,
+                parziale: parziale,
+                totale: totale,
                 page: entry.page,
                 yPos: yPosition
               });
@@ -367,7 +374,6 @@ async function renderStageGraphic(stage) {
 
   try {
     const page = await pdfDoc.getPage(stage.page);
-    // Scale elevato a 3.0 per la massima nitidezza della sola icona
     const scale = 3.0;
     const viewport = page.getViewport({ scale: scale });
     
@@ -381,14 +387,10 @@ async function renderStageGraphic(stage) {
     const cropCanvas = document.createElement("canvas");
     const cropCtx = cropCanvas.getContext("2d");
 
-    // ISOLAMENTO DELLA SOLA COLONNA CENTRALE (SIMBOLO DI DIREZIONE / TULIP)
     const cropX = viewport.width * 0.35; 
     const cropWidth = viewport.width * 0.30;
-    
-    // Altezza focalizzata sulla singola casella
     const stageHeight = viewport.height / 9.5;
     
-    // Posizionamento verticale centrato
     let cropY = (viewport.height - (stage.yPos * scale)) - (stageHeight / 2);
     if (cropY < 0 || isNaN(cropY)) cropY = viewport.height * 0.2;
 
@@ -509,19 +511,71 @@ function handlePosition(position) {
   }
 }
 
-// WAKE LOCK E AVVIO GPS
+// GESTIONE AVANZATA SCHERMO ATTIVO (NATIVE WAKE LOCK + SAFARI FALLBACK)
 async function requestWakeLock() {
+  const lockEl = document.getElementById("wakelock-text");
+
+  // Metodo 1: Screen Wake Lock API Standard
   if ('wakeLock' in navigator) {
     try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      const lockEl = document.getElementById("wakelock-text");
-      if (lockEl) {
-        lockEl.innerText = "Schermo: Attivo 💡";
-        lockEl.style.color = "#00e676";
+      if (!wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        if (lockEl) {
+          lockEl.innerText = "Schermo: Attivo 💡";
+          lockEl.style.color = "#00e676";
+        }
+
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+        });
       }
-    } catch (err) {}
+      return;
+    } catch (err) {
+      console.warn("Wake Lock nativo rifiutato, attivo il fallback per Safari iOS...", err);
+    }
   }
+
+  // Metodo 2: Fallback Video per Safari su iOS
+  startSafariVideoFallback(lockEl);
 }
+
+// FALLBACK SAFARI iOS: Video Trasparente in Loop per Impedire il Blocco Schermo
+function startSafariVideoFallback(lockEl) {
+  if (!fallbackVideoEl) {
+    fallbackVideoEl = document.createElement("video");
+    fallbackVideoEl.setAttribute("playsinline", "");
+    fallbackVideoEl.setAttribute("muted", "");
+    fallbackVideoEl.setAttribute("loop", "");
+    fallbackVideoEl.style.position = "absolute";
+    fallbackVideoEl.style.width = "1px";
+    fallbackVideoEl.style.height = "1px";
+    fallbackVideoEl.style.opacity = "0.01";
+    fallbackVideoEl.style.pointerEvents = "none";
+    
+    // Video ultra-leggero H264 trasparente in base64
+    fallbackVideoEl.src = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAAAAG1kYXQ=";
+    document.body.appendChild(fallbackVideoEl);
+  }
+
+  fallbackVideoEl.play().then(() => {
+    if (lockEl) {
+      lockEl.innerText = "Schermo: Attivo (iOS) 💡";
+      lockEl.style.color = "#00e676";
+    }
+  }).catch(() => {
+    if (lockEl) {
+      lockEl.innerText = "Schermo: Tocca lo schermo ⚠️";
+      lockEl.style.color = "#ffb300";
+    }
+  });
+}
+
+// RIPRISTINA AUTOMATICAMENTE IL BLOCCO SCHERMO QUANDO L'UTENTE TORNA NELL'APP SAFARI
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible") {
+    await requestWakeLock();
+  }
+});
 
 function startGPS() {
   if ("geolocation" in navigator && !watchId) {
