@@ -105,7 +105,7 @@ function handleUserInteraction() {
   }
 }
 
-// ---------------------------------------------------------
+/*// ---------------------------------------------------------
 // MAPPA & TRACKING IN TEMPO REALE
 // ---------------------------------------------------------
 function initMap() {
@@ -136,7 +136,7 @@ function initMap() {
   }
 }
 
-/*function updateMapPosition(lat, lng) {
+function updateMapPosition(lat, lng) {
   if (!map) return;
 
   if (!userMarker) {
@@ -154,7 +154,7 @@ function initMap() {
   } else {
     userMarker.setLatLng([lat, lng]);
   }
-}*/
+}
 // Variabile globale per memorizzare le ultime coordinate GPS ricevute
 let currentCoords = null;
 
@@ -190,6 +190,74 @@ function recenterMap() {
     map.flyTo([currentCoords.lat, currentCoords.lng], 16, { animate: true, duration: 0.8 });
   } else {
     alert("In attesa del segnale GPS...");
+  }
+}*/
+
+// Memorizza lo storico delle coordinate per tracciare il percorso su PDF/Immagini
+let livePathCoords = [];
+
+function initMap() {
+  const mapEl = document.getElementById("map");
+  if (!mapEl) return;
+
+  map = L.map('map', { zoomControl: false, attributionControl: false }).setView([41.9028, 12.4964], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  // 1. CASO GPX: Recupera il percorso precaricato
+  const storedPath = sessionStorage.getItem("roadbook_gpx_path");
+  if (storedPath) {
+    try {
+      const gpxCoords = JSON.parse(storedPath);
+      if (gpxCoords.length > 0) {
+        trackPolyline = L.polyline(gpxCoords, {
+          color: '#ff9800',
+          weight: 5,
+          opacity: 0.85,
+          lineJoin: 'round'
+        }).addTo(map);
+
+        map.fitBounds(trackPolyline.getBounds(), { padding: [20, 20] });
+        return;
+      }
+    } catch (e) {
+      console.warn("Errore nel caricamento del percorso GPX", e);
+    }
+  }
+
+  // 2. CASO PDF / IMMAGINE: Inizializza la linea dinamica per tracciare il percorso in diretta
+  trackPolyline = L.polyline([], {
+    color: '#00b0ff', // Colore azzurro per la traccia in tempo reale del PDF/Immagine
+    weight: 5,
+    opacity: 0.9,
+    lineJoin: 'round'
+  }).addTo(map);
+}
+
+function updateMapPosition(lat, lng) {
+  if (!map) return;
+
+  currentCoords = { lat, lng };
+
+  // Aggiorna o crea il marker del veicolo
+  if (!userMarker) {
+    userMarker = L.circleMarker([lat, lng], {
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#00e676',
+      fillOpacity: 1,
+      radius: 9
+    }).addTo(map);
+    
+    map.setView([lat, lng], 16);
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
+
+  // Se stiamo navigando un PDF/Immagine (non c'è un GPX precaricato), disegna la linea man mano che ti muovi!
+  const storedPath = sessionStorage.getItem("roadbook_gpx_path");
+  if (!storedPath && trackPolyline) {
+    livePathCoords.push([lat, lng]);
+    trackPolyline.setLatLngs(livePathCoords);
   }
 }
 
