@@ -60,6 +60,26 @@ function playAlertBeep() {
   }
 }
 
+// CONVERTITORE UNIVERSALE PER GIF E IMMAGINI
+// Trasforma qualsiasi GIF (anche animata) o immagine in un Frame Statico JPEG pulito per Tesseract e Canvas
+async function convertGifOrImageToCanvasDataUrl(rawSrc) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      // Disegna il primo frame della GIF / Immagine
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.onerror = (err) => reject(err);
+    img.src = rawSrc;
+  });
+}
+
 // INIZIALIZZAZIONE
 document.addEventListener("DOMContentLoaded", () => {
   if (document.body.classList.contains("page-dashboard")) {
@@ -134,6 +154,7 @@ async function loadRoadbook(event) {
   const statusEl = document.getElementById("upload-status");
   const fileName = file.name.toLowerCase();
 
+  // 1. Conversione HEIC iPhone
   if (fileName.endsWith(".heic") || file.type === "image/heic") {
     if (statusEl) statusEl.innerText = "Conversione formato HEIC iPhone in corso...";
     try {
@@ -146,15 +167,21 @@ async function loadRoadbook(event) {
     }
   }
 
-  // SUPPORTO IMMAGINI (Inclusi file GIF, PNG, JPG)
-  if (file.type.startsWith("image/") || fileName.endsWith(".gif")) {
-    if (statusEl) statusEl.innerText = "Analisi OCR Immagine/GIF in corso...";
+  // 2. Gestione Immagini, GIF e Formati Grafici
+  const isGif = fileName.endsWith(".gif") || file.type === "image/gif";
+  const isImage = file.type.startsWith("image/") || isGif;
+
+  if (isImage) {
+    if (statusEl) statusEl.innerText = isGif ? "Elaborazione GIF in corso..." : "Analisi OCR Immagine in corso...";
+    
     const reader = new FileReader();
     reader.onload = async function(e) {
-      const imageDataUrl = e.target.result;
       try {
+        // Normalizzazione obbligatoria per GIF e immagini non standard
+        const cleanImageDataUrl = await convertGifOrImageToCanvasDataUrl(e.target.result);
+
         const worker = await Tesseract.createWorker('ita');
-        const ret = await worker.recognize(imageDataUrl);
+        const ret = await worker.recognize(cleanImageDataUrl);
         await worker.terminate();
 
         const extractedText = ret.data.text;
@@ -179,22 +206,30 @@ async function loadRoadbook(event) {
         let noteText = lines.find(l => /[a-zA-Z]{3,}/.test(l) && !isDislivelloText(l)) || "INSERISCI DIREZIONE";
 
         extractedStages.push({
-          nota: 1, text: noteText, parziale: parzialeMetri, totale: totaleMetri, isImage: true, imageData: imageDataUrl
+          nota: 1, 
+          text: noteText, 
+          parziale: parzialeMetri, 
+          totale: totaleMetri, 
+          isImage: true, 
+          imageData: cleanImageDataUrl
         });
 
         sessionStorage.setItem("roadbook_route", JSON.stringify(extractedStages));
         sessionStorage.removeItem("roadbook_pdf_data");
         window.location.href = "src/dashboard.html";
       } catch (err) {
-        if (statusEl) statusEl.innerText = "Errore durante l'analisi dell'immagine/GIF.";
+        if (statusEl) statusEl.innerText = "Errore durante l'elaborazione del file GIF/Immagine.";
       }
     };
     reader.readAsDataURL(file);
     return;
   }
 
+  // 3. Gestione PDF
   if (file.type === "application/pdf") {
     loadPDF(file);
+  } else {
+    if (statusEl) statusEl.innerText = "Formato non riconosciuto. Seleziona un PDF, GIF, JPG o PNG.";
   }
 }
 
@@ -436,7 +471,7 @@ async function extractDirectionFromImage(imageDataUrl) {
       cropCanvas.height = cropHeight;
 
       cropCtx.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-      resolve(cropCanvas.toDataURL());
+      resolve(cropCanvas.toDataURL("image/jpeg"));
     };
     img.src = imageDataUrl;
   });
