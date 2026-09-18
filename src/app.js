@@ -152,7 +152,7 @@ function updateMapPosition(lat, lng) {
 
   currentCoords = { lat, lng };
 
-  // Aggiorna o crea il marcatore del veicolo
+  // 1. Crea o aggiorna il marcatore della tua posizione
   if (!userMarker) {
     userMarker = L.circleMarker([lat, lng], {
       color: '#ffffff',
@@ -162,14 +162,16 @@ function updateMapPosition(lat, lng) {
       radius: 9
     }).addTo(map);
     
-    if (!plannedPolyline) {
-      map.setView([lat, lng], 16);
-    }
+    // Primo fissaggio della posizione con zoom ravvicinato
+    map.setView([lat, lng], 17);
   } else {
     userMarker.setLatLng([lat, lng]);
+    
+    // 2. INSEGUIMENTO AUTOMATICO: centra costantemente la mappa sul GPS
+    map.panTo([lat, lng], { animate: true, duration: 0.5 });
   }
 
-  // Aggiunge la nuova posizione alla linea azzurra in tempo reale
+  // 3. Aggiunge la nuova posizione alla linea azzurra in tempo reale
   livePathCoords.push([lat, lng]);
   if (livePolyline) {
     livePolyline.setLatLngs(livePathCoords);
