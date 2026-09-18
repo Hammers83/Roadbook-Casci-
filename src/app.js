@@ -544,6 +544,17 @@ async function extractDirectionFromImage(imageDataUrl) {
 function updateStageDisplay() {
   if (route.length === 0) return;
 
+  // CONTROLLO TAPPE A 0 KM:
+  // Se la nota attuale ha distanza 0, avanza automaticamente finché non trova una tappa con km > 0
+  while (
+    currentStageIndex < route.length - 1 &&
+    (route[currentStageIndex].parziale === 0 || route[currentStageIndex].totale === 0)
+  ) {
+    console.log(`Nota ${route[currentStageIndex].nota} ha 0 km: passaggio automatico alla successiva.`);
+    currentStageIndex++;
+    tripKmTraveled = 0.0; // Azzera il parziale per la nuova tappa
+  }
+
   const current = route[currentStageIndex];
   const next = (currentStageIndex + 1 < route.length) ? route[currentStageIndex + 1] : null;
 
